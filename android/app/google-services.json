@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "467299917186",
+    "project_id": "yesiknow-febf2",
+    "storage_bucket": "yesiknow-febf2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:467299917186:android:689b518a6089fbe47c839b",
+        "android_client_info": {
+          "package_name": "wicotech.com.moovi"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "467299917186-rql53lvkbomncjr3us1on7svgnletn05.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "wicotech.com.moovi",
+            "certificate_hash": "27b51cd7c92588f2fcc908106a7b67487af4bfa5"
+          }
+        },
+        {
+          "client_id": "467299917186-3k6nkv1l4r2lpnesg4rsckthltfih7ns.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBCFYx28y-7TAMDfjgL3KXTrA9PAGMUyM0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "467299917186-3k6nkv1l4r2lpnesg4rsckthltfih7ns.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "467299917186-d02ofh9ok82r9152k9ksf4je90q3oenm.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "wicotech.com.moovi"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,212 @@
+[
+  {
+    "driverId": "driver_051",
+    "city": "Rabat",
+    "latitude": 34.022573,
+    "longitude": -6.8473,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_052",
+    "city": "Rabat",
+    "latitude": 34.0182,
+    "longitude": -6.844921,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_053",
+    "city": "Rabat",
+    "latitude": 34.023738,
+    "longitude": -6.83948,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_054",
+    "city": "Rabat",
+    "latitude": 34.025606,
+    "longitude": -6.846557,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_055",
+    "city": "Rabat",
+    "latitude": 34.019963,
+    "longitude": -6.847242,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_056",
+    "city": "Rabat",
+    "latitude": 34.017524,
+    "longitude": -6.841536,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_057",
+    "city": "Rabat",
+    "latitude": 34.015218,
+    "longitude": -6.845214,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_058",
+    "city": "Rabat",
+    "latitude": 33.995799,
+    "longitude": -6.848461,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_059",
+    "city": "Rabat",
+    "latitude": 33.990645,
+    "longitude": -6.847929,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_060",
+    "city": "Rabat",
+    "latitude": 33.997713,
+    "longitude": -6.854922,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_061",
+    "city": "Rabat",
+    "latitude": 33.99767,
+    "longitude": -6.846622,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_062",
+    "city": "Rabat",
+    "latitude": 34.001083,
+    "longitude": -6.818134,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_063",
+    "city": "Rabat",
+    "latitude": 34.008487,
+    "longitude": -6.815961,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_064",
+    "city": "Rabat",
+    "latitude": 33.998113,
+    "longitude": -6.818839,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_065",
+    "city": "Rabat",
+    "latitude": 34.00717,
+    "longitude": -6.812755,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_066",
+    "city": "Rabat",
+    "latitude": 33.975686,
+    "longitude": -6.869243,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_067",
+    "city": "Rabat",
+    "latitude": 33.972435,
+    "longitude": -6.866323,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_068",
+    "city": "Rabat",
+    "latitude": 33.970542,
+    "longitude": -6.871376,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_069",
+    "city": "Salé",
+    "latitude": 34.044953,
+    "longitude": -6.796578,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_070",
+    "city": "Salé",
+    "latitude": 34.04534,
+    "longitude": -6.797072,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_071",
+    "city": "Salé",
+    "latitude": 34.043455,
+    "longitude": -6.80345,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_072",
+    "city": "Salé",
+    "latitude": 34.037735,
+    "longitude": -6.800527,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_073",
+    "city": "Salé",
+    "latitude": 34.035958,
+    "longitude": -6.801207,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_074",
+    "city": "Salé",
+    "latitude": 34.062212,
+    "longitude": -6.784664,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_075",
+    "city": "Salé",
+    "latitude": 34.068628,
+    "longitude": -6.783622,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_076",
+    "city": "Salé",
+    "latitude": 34.065442,
+    "longitude": -6.785486,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_077",
+    "city": "Salé",
+    "latitude": 34.064204,
+    "longitude": -6.77676,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_078",
+    "city": "Salé",
+    "latitude": 34.085776,
+    "longitude": -6.75469,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_079",
+    "city": "Salé",
+    "latitude": 34.080054,
+    "longitude": -6.75325,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_080",
+    "city": "Salé",
+    "latitude": 34.079961,
+    "longitude": -6.757447,
+    "isAvailable": true
+  }
+]
