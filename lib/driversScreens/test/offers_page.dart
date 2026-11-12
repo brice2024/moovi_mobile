@@ -8,6 +8,8 @@ import '../../services/driver_service.dart';
 import 'driver_theme.dart';
 import 'ride_offer.dart';
 import 'ride_details_page.dart';
+import '../wallet/driver_wallet_page.dart';
+import '../wallet/recharge_wallet_sheet.dart';
 
 class OffersPage extends StatefulWidget {
   const OffersPage({super.key});
@@ -55,7 +57,27 @@ class _OffersPageState extends State<OffersPage> {
     );
   }
 
-  void _toggleOnline() {
+  Future<void> _toggleOnline() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null && !_isOnline) {
+      // Vérifier le solde avant de passer en ligne
+      final driverData = await DriverService.instance.getDriverData(uid);
+      final balance = (driverData?['walletBalance'] as num?)?.toInt() ?? 5000;
+      final isBlocked = driverData?['isWalletBlocked'] == true || balance < 0;
+
+      if (isBlocked) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Solde insuffisant pour couvrir les commissions. Veuillez recharger votre portefeuille.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        showRechargeWalletSheet(context: context, driverId: uid);
+        return;
+      }
+    }
+
     setState(() {
       _isOnline = !_isOnline;
     });
@@ -83,20 +105,128 @@ class _OffersPageState extends State<OffersPage> {
         SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              GestureDetector(
-                onTap: _toggleOnline,
-                child: OnlineChip(online: _isOnline),
-              ),
-              Row(
-                children: [
-                  RoundOrangeButton(
-                    icon: Icons.arrow_back,
-                    onTap: () => Navigator.maybePop(context),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                  GestureDetector(
+                    onTap: _toggleOnline,
+                    child: OnlineChip(online: _isOnline),
                   ),
-                ],
-              ),
-            ]),
+                  Row(
+                    children: [
+                      // Solde du portefeuille PawaPay
+                      StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                        stream: FirebaseAuth.instance.currentUser?.uid != null
+                            ? DriverService.instance.streamDriverWallet(FirebaseAuth.instance.currentUser!.uid)
+                            : null,
+                        builder: (context, snap) {
+                          final data = snap.data?.data() ?? {};
+                          final balance = (data['walletBalance'] as num?)?.toInt() ?? 5000;
+                          final isBlocked = data['isWalletBlocked'] == true || balance < 0;
+
+                          return GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => const DriverWalletPage()),
+                              );
+                            },
+                            child: Container(
+                              margin: const EdgeInsets.only(right: 8),
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: isBlocked ? Colors.red : Colors.white,
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: [BoxShadow(color: Colors.black.withOpacity(.08), blurRadius: 8)],
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.account_balance_wallet_rounded,
+                                    size: 14,
+                                    color: isBlocked ? Colors.white : MooviColors.orange,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    '$balance FCFA',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                      color: isBlocked ? Colors.white : MooviColors.dark,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      RoundOrangeButton(
+                        icon: Icons.arrow_back,
+                        onTap: () => Navigator.maybePop(context),
+                      ),
+                    ],
+                  ),
+                ]),
+
+                // Alerte solde insuffisant
+                StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                  stream: FirebaseAuth.instance.currentUser?.uid != null
+                      ? DriverService.instance.streamDriverWallet(FirebaseAuth.instance.currentUser!.uid)
+                      : null,
+                  builder: (context, snap) {
+                    final data = snap.data?.data() ?? {};
+                    final balance = (data['walletBalance'] as num?)?.toInt() ?? 5000;
+                    final isBlocked = data['isWalletBlocked'] == true || balance < 0;
+
+                    if (!isBlocked) return const SizedBox.shrink();
+
+                    return Container(
+                      margin: const EdgeInsets.only(top: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade700,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [BoxShadow(color: Colors.red.withOpacity(0.3), blurRadius: 8)],
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 20),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Text(
+                              'Solde insuffisant pour commissions. Rechargez pour accepter des courses.',
+                              style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () {
+                              final uid = FirebaseAuth.instance.currentUser?.uid;
+                              if (uid != null) {
+                                showRechargeWalletSheet(context: context, driverId: uid);
+                              }
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Text(
+                                'Recharger',
+                                style: TextStyle(color: Colors.red, fontSize: 10, fontWeight: FontWeight.w900),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
           ),
         ),
 

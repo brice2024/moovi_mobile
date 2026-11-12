@@ -129,7 +129,7 @@ class _HistoryPageState extends State<HistoryPage> {
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
-                            isPaid ? 'RÉGLÉ (PayCentral / Cash)' : 'EN ATTENTE',
+                            isPaid ? 'RÉGLÉ (Espèces Cash)' : 'EN ATTENTE',
                             style: TextStyle(
                               fontSize: 9,
                               fontWeight: FontWeight.w800,

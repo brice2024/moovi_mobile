@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../services/driver_service.dart';
-import '../../widgets/paycentral_payment_sheet.dart';
 import 'driver_theme.dart';
 import 'ride_offer.dart';
 
@@ -100,23 +99,136 @@ class _ActiveRidePageState extends State<ActiveRidePage> {
   }
 
   void _promptPayment() {
-    showPayCentralPaymentSheet(
+    showModalBottomSheet(
       context: context,
-      rideId: widget.offer.id,
-      amount: finalPrice,
-      departureAddress: widget.offer.from,
-      destinationAddress: widget.offer.to,
-    ).then((paid) {
-      if (paid == true && mounted) {
-        setState(() => _isPaid = true);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Paiement PayCentral / Cash validé avec succès !'),
-            backgroundColor: MooviColors.green,
-          ),
-        );
-      }
-    });
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 44,
+              height: 5,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            const SizedBox(height: 18),
+            Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                color: MooviColors.green.withOpacity(0.12),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.payments_rounded, color: MooviColors.green, size: 32),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Règlement en Espèces (Cash)',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: MooviColors.dark),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Le passager doit vous remettre le montant de la course en espèces.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'MONTANT À PERCEVOIR',
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: MooviColors.grey),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '$finalPrice FCFA',
+                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: MooviColors.orange),
+                      ),
+                    ],
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: MooviColors.orangeSoft,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      'Commission: ${(finalPrice * 0.15).round()} FCFA (15%)',
+                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: MooviColors.orange),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: () async {
+                  Navigator.pop(context);
+                  final uid = FirebaseAuth.instance.currentUser?.uid;
+
+                  // 1. Enregistrer le paiement en espèces
+                  await DriverService.instance.markRideAsPaid(
+                    rideId: widget.offer.id,
+                    paymentMethod: 'cash',
+                    amount: finalPrice,
+                    provider: 'cash',
+                  );
+
+                  // 2. Déduire la commission plateforme (15%) du portefeuille chauffeur
+                  if (uid != null) {
+                    await DriverService.instance.deductRideCommission(
+                      driverId: uid,
+                      rideId: widget.offer.id,
+                      ridePrice: finalPrice,
+                      commissionRate: 0.15,
+                    );
+                  }
+
+                  if (!mounted) return;
+                  setState(() => _isPaid = true);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Paiement espèces confirmé ! Commission de 15% prélevée de votre portefeuille.'),
+                      backgroundColor: MooviColors.green,
+                    ),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: MooviColors.green,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  elevation: 0,
+                ),
+                child: const Text('Confirmer l\'encaissement en Espèces', style: TextStyle(fontWeight: FontWeight.w800)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   String get _buttonLabel {
@@ -128,7 +240,7 @@ class _ActiveRidePageState extends State<ActiveRidePage> {
       case ActiveRideStep.inProgress:
         return 'Terminer la course';
       case ActiveRideStep.completed:
-        return _isPaid ? 'Retour à l\'accueil' : 'Encaisser via PayCentral / Cash';
+        return _isPaid ? 'Retour à l\'accueil' : 'Confirmer encaissement Espèces';
     }
   }
 

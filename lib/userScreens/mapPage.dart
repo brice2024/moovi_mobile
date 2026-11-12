@@ -11,7 +11,6 @@ import 'package:moovi/userScreens/widgets/rideSheetColors.dart';
 import 'package:moovi/widgets/UserbottomNavBar.dart';
 import '../services/itinéraire/DirectionsService.dart';
 import '../services/driver_service.dart';
-import '../widgets/paycentral_payment_sheet.dart';
 import 'dataService.dart' hide DriverService;
 import 'place_search_controller.dart';
 import 'places_service.dart';
@@ -331,36 +330,111 @@ class _MapPageState extends State<MapPage> {
       final status = data['status']?.toString();
       final isPaid = data['isPaid'] == true;
 
-      // Lorsque la course est terminée par le chauffeur
-      if (status == 'completed' && !isPaid && mounted) {
+      // Lorsque la course est terminée par le chauffeur (règlement en Espèces Cash)
+      if (status == 'completed' && mounted) {
         _currentRideSub?.cancel();
-        showPayCentralPaymentSheet(
+        final amount = (data['agreedPrice'] as num?)?.toInt() ??
+            (data['price'] as num?)?.toInt() ??
+            2000;
+
+        showModalBottomSheet(
           context: context,
-          rideId: _currentRideId!,
-          amount: (data['agreedPrice'] as num?)?.toInt() ??
-              (data['price'] as num?)?.toInt() ??
-              2000,
-          departureAddress:
-              data['departureAddress']?.toString() ?? 'Point de départ',
-          destinationAddress:
-              data['destinationAddress']?.toString() ?? 'Destination',
-        ).then((paid) {
-          if (paid == true && mounted) {
-            setState(() {
-              _showOffers = false;
-              _acceptedOffer = null;
-              _currentRideId = null;
-              polylines.clear();
-            });
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  'Course réglée avec succès via PayCentral ! Merci d\'avoir choisi Moovi.',
+          isDismissible: false,
+          enableDrag: false,
+          backgroundColor: Colors.transparent,
+          builder: (_) => Container(
+            padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 44,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
-              ),
-            );
-          }
-        });
+                const SizedBox(height: 20),
+                Container(
+                  width: 64,
+                  height: 64,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFE8F5E9),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.check_circle_rounded, color: Color(0xFF2E7D32), size: 42),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Vous êtes arrivé à destination !',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.background),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Veuillez remettre le règlement en espèces au chauffeur.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 13, color: Colors.grey),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8F9FA),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.grey.shade200),
+                  ),
+                  child: Column(
+                    children: [
+                      const Text(
+                        'TOTAL À PAYER EN ESPÈCES',
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Colors.grey),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '$amount FCFA',
+                        style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: AppColors.primary),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 22),
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      setState(() {
+                        _showOffers = false;
+                        _acceptedOffer = null;
+                        _currentRideId = null;
+                        polylines.clear();
+                      });
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Merci d\'avoir voyagé avec Moovi Gabon !'),
+                        ),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      elevation: 0,
+                    ),
+                    child: const Text('J\'ai réglé le chauffeur • Terminer', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
       }
     });
   }

@@ -20,7 +20,7 @@ const Map<String, String> kDocumentLabels = {
   'photo_interieur': 'Voiture – intérieur',
   'photo_plaque': 'Plaque d\'immatriculation',
 };
-
+ 
 // ─────────────────────────────────────────────────────────────────────────────
 // Modèle
 // ─────────────────────────────────────────────────────────────────────────────

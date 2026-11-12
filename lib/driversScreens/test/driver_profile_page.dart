@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'driver_theme.dart';
+import '../wallet/driver_wallet_page.dart';
 
 /// iPhone 16 Pro - 96 : profil chauffeur
 class DriverProfilePage extends StatelessWidget {
@@ -7,12 +8,6 @@ class DriverProfilePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final items = <(IconData, String)>[
-      (Icons.settings_outlined, 'Paramètres'),
-      (Icons.directions_car_outlined, 'Informations du véhicule'),
-      (Icons.notifications_none, 'Notifications'),
-      (Icons.help_outline, 'Assistance'),
-    ];
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -49,9 +44,9 @@ class DriverProfilePage extends StatelessWidget {
                   ),
                 ]),
                 const SizedBox(height: 14),
-                const Text('Ahmed B.', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+                const Text('Chauffeur Moovi', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 2),
-                const Text('Dacia Logan • ABC-123',
+                const Text('Toyota Corolla • 1234-GA-01',
                     style: TextStyle(fontSize: 11, color: MooviColors.grey)),
                 const SizedBox(height: 10),
                 Row(mainAxisSize: MainAxisSize.min, children: [
@@ -68,10 +63,26 @@ class DriverProfilePage extends StatelessWidget {
               ]),
             ),
             const SizedBox(height: 20),
-            for (final it in items) ...[
-              _MenuTile(icon: it.$1, label: it.$2, onTap: () {}),
-              const SizedBox(height: 10),
-            ],
+
+            _MenuTile(
+              icon: Icons.account_balance_wallet_outlined,
+              label: 'Mon Portefeuille & Commissions Moovi',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const DriverWalletPage()),
+                );
+              },
+            ),
+            const SizedBox(height: 10),
+            _MenuTile(icon: Icons.settings_outlined, label: 'Paramètres', onTap: () {}),
+            const SizedBox(height: 10),
+            _MenuTile(icon: Icons.directions_car_outlined, label: 'Informations du véhicule', onTap: () {}),
+            const SizedBox(height: 10),
+            _MenuTile(icon: Icons.notifications_none, label: 'Notifications', onTap: () {}),
+            const SizedBox(height: 10),
+            _MenuTile(icon: Icons.help_outline, label: 'Assistance', onTap: () {}),
+
             const Spacer(),
             Container(
               decoration: BoxDecoration(
