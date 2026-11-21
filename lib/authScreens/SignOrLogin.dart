@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_intl_phone_field/flutter_intl_phone_field.dart';
 import 'package:moovi/theme/app_colors.dart';
@@ -127,7 +128,26 @@ class _SignorloginState extends State<Signorlogin> {
                     //vérifier que le numéro est renseigné avant de passer à la page suivante passer à la page de vérification
                     if(isPhoneValid){
 
-                      await AuthService.instance.sendOTP(_Countrycode+_phoneController.text);
+                      try {
+                        await AuthService.instance.sendOTP(_Countrycode+_phoneController.text);
+                      } on FirebaseAuthException catch (e) {
+                        if (!context.mounted) return;
+                        final message = switch (e.code) {
+                          'invalid-phone-number' => "Ce numéro de téléphone n'est pas valide.",
+                          'too-many-requests' => "Trop de tentatives. Réessayez plus tard.",
+                          'network-request-failed' => "Pas de connexion internet.",
+                          _ => "Impossible d'envoyer le code (${e.code}). Réessayez.",
+                        };
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(message)),
+                        );
+                        return;
+                      }
+
+                      if (!context.mounted) return;
+                      // Android peut valider le numéro tout seul :
+                      // l'AuthWrapper affiche alors directement l'accueil.
+                      if (AuthService.instance.currentUser != null) return;
 
                       Navigator.push(
                           context,

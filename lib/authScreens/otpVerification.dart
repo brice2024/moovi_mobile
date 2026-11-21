@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:moovi/services/Auth.dart';
-import 'package:moovi/userScreens/PagesManager.dart';
 import 'package:moovi/userScreens/mapPage.dart';
 
 import '../widgets/animations/fadeSlideIn.dart';
@@ -154,16 +153,24 @@ class _OtpverificationState extends State<Otpverification> {
 
   // --------------------------------------------------------------- Envoi
 
-  Future<void> _submit() async {
+  /// Vérifie le code ; renvoie `true` si l'utilisateur est connecté.
+  Future<bool> _submit() async {
     if (_code.length < _codeLength) {
       setState(() => _hasError = true);
-      return;
+      return false;
     }
-    // TODO: vérifier le code `_code` auprès de ton API
     debugPrint("Code saisi : $_code");
 
-    await AuthService.instance.verifyOTP(_code);
-
+    final ok = await AuthService.instance.verifyOTP(_code);
+    if (!ok && mounted) {
+      setState(() => _hasError = true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Code invalide ou expiré. Vérifiez le code ou demandez-en un nouveau."),
+        ),
+      );
+    }
+    return ok;
   }
 
   // ------------------------------------------------------------------ UI
@@ -294,14 +301,11 @@ class _OtpverificationState extends State<Otpverification> {
                 const SizedBox(height: 20),
 
                 CustomButton(text: "Envoyer", onTap: () async {
-                  await _submit();
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const Pagesmanager(),
-                    ),
-                  );
-
+                  final ok = await _submit();
+                  if (!ok || !context.mounted) return;
+                  // Une fois connecté, l'AuthWrapper (première page)
+                  // affiche déjà l'accueil : il suffit de revenir dessus.
+                  Navigator.of(context).popUntil((route) => route.isFirst);
                 }),
 
                 const SizedBox(height: 30),

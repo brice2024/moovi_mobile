@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -95,35 +97,56 @@ class AuthService {
 
   String verificationId = '';
 
-  Future<void> sendOTP(String phoneNumber) async {
-    await _auth.verifyPhoneNumber(
+  /// Envoie le code SMS.
+  ///
+  /// Se termine quand Firebase a réellement envoyé le code (ou quand Android
+  /// a validé le numéro tout seul), et lève une [FirebaseAuthException] si
+  /// l'envoi échoue. `verifyPhoneNumber` rend la main avant ces événements,
+  /// d'où le Completer.
+  Future<void> sendOTP(String phoneNumber) {
+    final completer = Completer<void>();
+    verificationId = '';
+
+    _auth.verifyPhoneNumber(
       phoneNumber: phoneNumber, // Exemple : +22890123456
 
       verificationCompleted: (PhoneAuthCredential credential) async {
         // Vérification automatique possible sur Android
-        await _auth.signInWithCredential(credential);
+        try {
+          await _auth.signInWithCredential(credential);
+          if (!completer.isCompleted) completer.complete();
+        } on FirebaseAuthException catch (e) {
+          if (!completer.isCompleted) completer.completeError(e);
+        }
       },
 
       verificationFailed: (FirebaseAuthException e) {
-        print('❌Erreur : ${e.message}');
+        print('❌ Erreur envoi SMS : ${e.code} — ${e.message}');
+        if (!completer.isCompleted) completer.completeError(e);
       },
 
       codeSent: (String id, int? resendToken) {
         verificationId = id;
-
-        print('✅Code OTP envoyé ');
-        print(verificationId);
-
-        // Naviguer vers ta page OTP ici
+        print('✅ Code OTP envoyé');
+        if (!completer.isCompleted) completer.complete();
       },
 
       codeAutoRetrievalTimeout: (String id) {
         verificationId = id;
       },
-    );
+    ).catchError((Object e) {
+      if (!completer.isCompleted) completer.completeError(e);
+    });
+
+    return completer.future;
   }
 
   Future<bool> verifyOTP(String smsCode) async {
+    if (verificationId.isEmpty) {
+      print("❌ Aucun code SMS n'a été envoyé : vérification impossible");
+      return false;
+    }
+
     try {
       print("⚠️ Début de la vérification OTP");
 
