@@ -50,20 +50,19 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyBCFYx28y-7TAMDfjgL3KXTrA9PAGMUyM0',
-    appId: '1:467299917186:android:689b518a6089fbe47c839b',
-    messagingSenderId: '467299917186',
-    projectId: 'yesiknow-febf2',
-    storageBucket: 'yesiknow-febf2.firebasestorage.app',
+    apiKey: 'AIzaSyCXRCwJBfu0AbKY4iaNnetI6Dw7wzUgoVo',
+    appId: '1:893028295678:android:f4d7e59dbbd92123c696af',
+    messagingSenderId: '893028295678',
+    projectId: 'moovi-7d733',
+    storageBucket: 'moovi-7d733.firebasestorage.app',
   );
+
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyDL0KNGP1RVlPeUPLHClU_qASkLCa4orZ0',
-    appId: '1:467299917186:ios:67324e6d5e6937967c839b',
-    messagingSenderId: '467299917186',
-    projectId: 'yesiknow-febf2',
-    storageBucket: 'yesiknow-febf2.firebasestorage.app',
-    androidClientId: '467299917186-ke3h4clre8q3mr3ie8t8ra24enamf1u3.apps.googleusercontent.com',
-    iosClientId: '467299917186-d02ofh9ok82r9152k9ksf4je90q3oenm.apps.googleusercontent.com',
-    iosBundleId: 'wicotech.com.moovi',
+    apiKey: 'AIzaSyBkOsP7Wh5PcfPQaYvxj9mXTg-A5HhVue8',
+    appId: '1:893028295678:ios:f776a3b13e5f87dcc696af',
+    messagingSenderId: '893028295678',
+    projectId: 'moovi-7d733',
+    storageBucket: 'moovi-7d733.firebasestorage.app',
+    iosBundleId: 'com.wicotech.moovi',
   );
 }

@@ -1,0 +1,82 @@
+rules_version = '2';
+
+// Règles Firestore — Moovi
+// Calquées sur les flux actuels de l'app (client, chauffeur, paiement, portefeuille).
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isUser(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function ride(rideId) {
+      return get(/databases/$(database)/documents/rides/$(rideId)).data;
+    }
+
+    // ── Profils utilisateurs ────────────────────────────────────────────────
+    match /users/{uid} {
+      allow read: if signedIn();
+      allow create, update: if isUser(uid);
+      allow delete: if false;
+
+      // Historique des courses du client (écrit aussi par le chauffeur de la course)
+      match /rides/{rideId} {
+        allow read: if isUser(uid);
+        allow create, update: if isUser(uid)
+          || (signedIn() && ride(rideId).driverId == request.auth.uid);
+        allow delete: if isUser(uid);
+      }
+    }
+
+    // ── Courses ─────────────────────────────────────────────────────────────
+    match /rides/{rideId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.clientId == request.auth.uid;
+      allow update: if signedIn() && (
+        resource.data.clientId == request.auth.uid
+        || resource.data.driverId == request.auth.uid
+      );
+      allow delete: if signedIn() && resource.data.clientId == request.auth.uid;
+
+      // Offres des chauffeurs (doc id = uid du chauffeur)
+      match /offers/{driverId} {
+        allow read: if signedIn();
+        allow create, update: if isUser(driverId)
+          || (signedIn() && ride(rideId).clientId == request.auth.uid);
+        allow delete: if isUser(driverId);
+      }
+    }
+
+    // ── Chauffeurs ──────────────────────────────────────────────────────────
+    match /drivers/{uid} {
+      allow read: if signedIn();
+      allow create, update: if isUser(uid);
+      // Le client qui paie une course met à jour les stats du chauffeur
+      allow update: if signedIn()
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['ridesCount', 'totalRevenue', 'updatedAt']);
+      allow delete: if false;
+
+      match /wallet_transactions/{txId} {
+        allow read, create, update: if isUser(uid);
+        allow delete: if false;
+      }
+
+      match /documents/{docId} {
+        allow read, write: if isUser(uid);
+      }
+    }
+
+    // ── Données de test (chauffeurs fictifs sur la carte) ──────────────────
+    match /test_drivers/{driverId} {
+      allow read, write: if signedIn();
+    }
+
+    // Tout le reste est refusé par défaut.
+  }
+}

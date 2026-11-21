@@ -1,0 +1,34 @@
+rules_version = '2';
+
+// Règles Storage — Moovi
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isUser(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    // Image de 10 Mo max (request.resource est null lors d'une suppression)
+    function validImageOrDelete() {
+      return request.resource == null
+        || (request.resource.size < 10 * 1024 * 1024
+            && request.resource.contentType.matches('image/.*'));
+    }
+
+    // Photos de profil : users/{uid}/avatar_xxx.jpg
+    match /users/{uid}/{allPaths=**} {
+      allow read: if signedIn();
+      allow write: if isUser(uid) && validImageOrDelete();
+    }
+
+    // Documents chauffeur (permis, carte grise, etc.) : privés
+    match /drivers/{uid}/{allPaths=**} {
+      allow read: if isUser(uid);
+      allow write: if isUser(uid) && validImageOrDelete();
+    }
+  }
+}
