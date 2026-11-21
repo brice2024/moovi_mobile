@@ -1,7 +1,7 @@
 name: moovi
 description: "une application de vtc"
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.0+2
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -25,7 +25,6 @@ dependencies:
   geoflutterfire_plus: ^0.0.34
   flutter_polyline_points: ^3.1.0
   flutter_intl_phone_field: ^0.0.7
-  flutter_launcher_icons: ^0.14.4
   firebase_storage: ^13.6.0
   image_picker: ^1.2.4
   dotted_line: ^3.3.0
@@ -37,6 +36,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
+  flutter_launcher_icons: ^0.14.4
 
 flutter_launcher_icons:
   android: true
