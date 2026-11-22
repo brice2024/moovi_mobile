@@ -258,14 +258,16 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Pas de hauteur fixe : la carte prend la hauteur de son contenu, ce qui
+    // évite le dépassement (police Poppins, texte agrandi dans les réglages).
     return Container(
-      height: 65,
       padding: const EdgeInsets.symmetric(vertical: 10),
       decoration: BoxDecoration(
         color: AppColors.cream.withOpacity(0.6),
         borderRadius: BorderRadius.circular(18),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
