@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -7,6 +8,7 @@ import 'driver_theme.dart';
 import 'ride_offer.dart';
 import 'negotiate_price_page.dart';
 import 'active_ride_page.dart';
+import 'offers_page.dart' show ScheduledRideBadge;
 
 class RideDetailsPage extends StatefulWidget {
   final RideOffer offer;
@@ -21,6 +23,9 @@ class _RideDetailsPageState extends State<RideDetailsPage> {
   bool _isSending = false;
   bool _offerSent = false;
   int? _sentPrice;
+
+  /// Date de prise en charge si le client a planifié la course.
+  DateTime? _scheduledAt;
 
   @override
   void initState() {
@@ -45,6 +50,12 @@ class _RideDetailsPageState extends State<RideDetailsPage> {
 
       final status = data['status'];
       final driverId = data['driverId'];
+
+      final scheduled = data['scheduledAt'];
+      final scheduledAt = scheduled is Timestamp ? scheduled.toDate() : null;
+      if (scheduledAt != _scheduledAt && mounted) {
+        setState(() => _scheduledAt = scheduledAt);
+      }
 
       // Si le client a accepté notre offre, on ouvre l'écran de course active !
       if (status == 'accepted' && driverId == uid && mounted) {
@@ -129,6 +140,13 @@ class _RideDetailsPageState extends State<RideDetailsPage> {
                     const Spacer(),
                     IdTag(widget.offer.id.substring(0, widget.offer.id.length.clamp(0, 6))),
                   ]),
+                  if (_scheduledAt != null) ...[
+                    const SizedBox(height: 10),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: ScheduledRideBadge(scheduledAt: _scheduledAt!),
+                    ),
+                  ],
                   const SizedBox(height: 14),
                   _priceCard(),
                   const SizedBox(height: 14),

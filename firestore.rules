@@ -30,6 +30,11 @@ service cloud.firestore {
           || (signedIn() && ride(rideId).driverId == request.auth.uid);
         allow delete: if isUser(uid);
       }
+
+      // Lieux enregistrés (Maison, Travail…)
+      match /saved_places/{placeId} {
+        allow read, write: if isUser(uid);
+      }
     }
 
     // ── Courses ─────────────────────────────────────────────────────────────
@@ -53,9 +58,32 @@ service cloud.firestore {
     }
 
     // ── Chauffeurs ──────────────────────────────────────────────────────────
+    // Un chauffeur ne peut pas s'auto-valider : seul 'pending' (ou la valeur inchangée)
+    // est accepté pour verificationStatus et pour le statut de chaque pièce.
+    // 'approved' / 'verified' / 'rejected' sont réservés au back-office (console / Admin SDK).
+    function verificationOk() {
+      let v = request.resource.data.get('verificationStatus', null);
+      return v == null || v == 'pending'
+        || (resource != null && v == resource.data.get('verificationStatus', null));
+    }
+
+    function docStatusOk(key) {
+      let docs = request.resource.data.get('documents', {});
+      return !(key in docs)
+        || docs[key].get('status', 'pending') == 'pending'
+        || (resource != null
+            && key in resource.data.get('documents', {})
+            && docs[key] == resource.data.documents[key]);
+    }
+
+    function driverDocsOk() {
+      return docStatusOk('vehicle') && docStatusOk('plate') && docStatusOk('registration')
+        && docStatusOk('license') && docStatusOk('idCard');
+    }
+
     match /drivers/{uid} {
       allow read: if signedIn();
-      allow create, update: if isUser(uid);
+      allow create, update: if isUser(uid) && verificationOk() && driverDocsOk();
       // Le client qui paie une course met à jour les stats du chauffeur
       allow update: if signedIn()
         && request.resource.data.diff(resource.data).affectedKeys()

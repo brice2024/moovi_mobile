@@ -1,370 +1,569 @@
+import 'dart:math' as math;
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import '../../services/driver_service.dart';
-import '../test/driver_theme.dart';
-import 'recharge_wallet_sheet.dart';
+import 'package:moovi/widgets/moovi_scaffold.dart';
 
-class DriverWalletPage extends StatelessWidget {
-  const DriverWalletPage({super.key});
+import '../../services/driver_service.dart';
+import '../../widgets/UserbottomNavBar.dart';
+import 'driver_wallet_history_page.dart';
+import 'moovi_format.dart';
+import 'recharge_wallet_sheet.dart';
+import 'wallet_widgets.dart';
+
+/// Période du graphique des gains.
+enum WalletPeriod {
+  week('Semaine'),
+  month('Mois'),
+  year('Année');
+
+  const WalletPeriod(this.label);
+  final String label;
+}
+
+/// « Mon Wallet » du chauffeur (maquette 20).
+/// Source : `drivers/{uid}.walletBalance` et `drivers/{uid}/wallet_transactions`.
+class DriverWalletPage extends StatefulWidget {
+  const DriverWalletPage({super.key, this.embedded = false});
+
+  /// true quand la page est affichée dans l'onglet « WALLET » (barre du bas).
+  final bool embedded;
+
+  @override
+  State<DriverWalletPage> createState() => _DriverWalletPageState();
+}
+
+class _DriverWalletPageState extends State<DriverWalletPage> {
+  WalletPeriod _period = WalletPeriod.week;
 
   @override
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser?.uid;
 
-    if (uid == null) {
-      return const Scaffold(
-        body: Center(child: Text('Veuillez vous connecter pour voir votre portefeuille.')),
-      );
-    }
-
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: MooviColors.dark),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'Mon Portefeuille Moovi',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-            color: MooviColors.dark,
+      backgroundColor: MooviGradient.start,
+      body: MooviGradientBackground(
+        child: SafeArea(
+          bottom: !widget.embedded,
+          child: Column(
+            children: [
+              if (widget.embedded)
+                const _CenteredTitle('Mon Wallet')
+              else
+                const MooviHeader(title: 'Mon Wallet'),
+              Expanded(
+                child: uid == null
+                    ? const Center(
+                        child: Text(
+                          'Veuillez vous connecter pour voir votre portefeuille.',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      )
+                    : _buildContent(uid),
+              ),
+            ],
           ),
         ),
-        centerTitle: false,
       ),
-      body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-        stream: DriverService.instance.streamDriverWallet(uid),
-        builder: (context, snapshot) {
-          final data = snapshot.data?.data() ?? {};
-          final int balance = (data['walletBalance'] as num?)?.toInt() ?? 5000;
-          final bool isBlocked = data['isWalletBlocked'] == true || balance < 0;
+    );
+  }
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildContent(String uid) {
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: DriverService.instance.streamDriverWallet(uid),
+      builder: (context, driverSnap) {
+        final data = driverSnap.data?.data() ?? const {};
+        // Même valeur par défaut que DriverService.deductRideCommission.
+        final balance = (data['walletBalance'] as num?)?.toInt() ?? 5000;
+        final blocked = data['isWalletBlocked'] == true || balance < 0;
+
+        return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: DriverService.instance.streamWalletTransactions(uid),
+          builder: (context, txSnap) {
+            final txs = (txSnap.data?.docs ?? const [])
+                .map((d) => WalletTx(d.id, d.data()))
+                .toList();
+            final rides = txs.where((t) => t.isCommission).toList();
+
+            return ListView(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                0,
+                20,
+                widget.embedded ? mooviNavBarInset(context) : 24,
+              ),
               children: [
-                // CARTE PRINCIPALE DU SOLDE
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(22),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: isBlocked
-                          ? [const Color(0xFFC62828), const Color(0xFFE53935)]
-                          : [const Color(0xFF1B1B1F), const Color(0xFF2C2C34)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
-                      BoxShadow(
-                        color: (isBlocked ? Colors.red : Colors.black).withOpacity(0.18),
-                        blurRadius: 18,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'SOLDE DISPONIBLE',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white70,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: isBlocked
-                                  ? Colors.white.withOpacity(0.2)
-                                  : MooviColors.green.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  isBlocked ? Icons.warning_amber_rounded : Icons.check_circle,
-                                  size: 13,
-                                  color: isBlocked ? Colors.white : MooviColors.green,
-                                ),
-                                const SizedBox(width: 5),
-                                Text(
-                                  isBlocked ? 'SOLDE INSUFFISANT' : 'COMPTE ACTIF',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w800,
-                                    color: isBlocked ? Colors.white : MooviColors.green,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        '$balance FCFA',
-                        style: const TextStyle(
-                          fontSize: 34,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white,
-                          letterSpacing: -0.5,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        isBlocked
-                          ? 'Votre solde ne couvre plus les commissions. Rechargez pour continuer à recevoir des courses.'
-                          : 'Ce solde couvre automatiquement les commissions Moovi (15%) sur vos courses en cash.',
-                        style: const TextStyle(fontSize: 12, color: Colors.white70, height: 1.3),
-                      ),
-                      const SizedBox(height: 18),
-
-                      // Bouton Recharger
-                      SizedBox(
-                        width: double.infinity,
-                        height: 48,
-                        child: ElevatedButton(
-                          onPressed: () => showRechargeWalletSheet(
-                            context: context,
-                            driverId: uid,
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: MooviColors.orange,
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                          ),
-                          child: const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.add_card_rounded, size: 18),
-                              SizedBox(width: 8),
-                              Text(
-                                'Recharger mon compte',
-                                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                _BalanceHeader(
+                  balance: balance,
+                  period: _period,
+                  onPeriodChanged: (p) => setState(() => _period = p),
                 ),
-
-                const SizedBox(height: 20),
-
-                // RÈGLES DES COMMISSIONS MOOVI
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: MooviColors.orangeSoft,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: MooviColors.orange.withOpacity(0.2)),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(Icons.info_outline, color: MooviColors.orange, size: 22),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Fonctionnement des commissions Moovi',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w800,
-                                color: MooviColors.dark,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '• Les passagers vous règlent 100% en Espèces (Cash).\n'
-                              '• La commission plateforme (15%) est prélevée de ce portefeuille.\n'
-                              '• Si votre solde passe sous 0 FCFA, votre compte est temporairement mis hors-ligne jusqu\'à la recharge.',
-                              style: TextStyle(
-                                fontSize: 11,
-                                height: 1.45,
-                                color: Colors.grey.shade800,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                const SizedBox(height: 10),
+                _RechargeRow(driverId: uid, blocked: blocked),
+                const SizedBox(height: 18),
+                SizedBox(
+                  height: 230,
+                  child: _EarningsChart(rides: rides, period: _period),
                 ),
-
+                const SizedBox(height: 22),
+                const _CommissionCard(),
                 const SizedBox(height: 24),
-
-                // HISTORIQUE DES TRANSACTIONS
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      'Historique des opérations',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: MooviColors.dark,
+                    const Expanded(
+                      child: Text(
+                        'Historique',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
-                    Text(
-                      'Automatisé PawaPay',
-                      style: TextStyle(fontSize: 11, color: Colors.grey.shade500, fontWeight: FontWeight.w600),
+                    TextButton(
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => DriverWalletHistoryPage(driverId: uid),
+                        ),
+                      ),
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.white.withValues(alpha: 0.85),
+                      ),
+                      child: const Text('Voir tout',
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-
-                StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                  stream: DriverService.instance.streamWalletTransactions(uid),
-                  builder: (context, txSnap) {
-                    final txDocs = txSnap.data?.docs ?? [];
-
-                    if (txSnap.connectionState == ConnectionState.waiting) {
-                      return const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(24),
-                          child: CircularProgressIndicator(color: MooviColors.orange),
-                        ),
-                      );
-                    }
-
-                    if (txDocs.isEmpty) {
-                      return Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 16),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade50,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.grey.shade200),
-                        ),
-                        child: Column(
-                          children: [
-                            Icon(Icons.receipt_long_rounded, size: 40, color: Colors.grey.shade400),
-                            const SizedBox(height: 8),
-                            const Text(
-                              'Aucune opération pour le moment',
-                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Vos recharges Mobile Money et commissions apparaîtront ici.',
-                              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-
-                    return ListView.separated(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: txDocs.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 10),
-                      itemBuilder: (context, index) {
-                        final tx = txDocs[index].data();
-                        final isDeposit = tx['type'] == 'deposit';
-                        final amount = (tx['amount'] as num?)?.toInt() ?? 0;
-                        final desc = tx['description']?.toString() ??
-                            (isDeposit ? 'Recharge Mobile Money' : 'Commission de course');
-                        final date = (tx['createdAt'] as Timestamp?)?.toDate();
-                        final dateFormatted = date != null
-                            ? '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')} à ${date.hour}h${date.minute.toString().padLeft(2, '0')}'
-                            : 'Récemment';
-
-                        return Container(
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: Colors.grey.shade200),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.02),
-                                blurRadius: 6,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 42,
-                                height: 42,
-                                decoration: BoxDecoration(
-                                  color: isDeposit
-                                      ? MooviColors.green.withOpacity(0.12)
-                                      : MooviColors.orange.withOpacity(0.12),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Icon(
-                                  isDeposit ? Icons.arrow_downward_rounded : Icons.percent_rounded,
-                                  color: isDeposit ? MooviColors.green : MooviColors.orange,
-                                  size: 20,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      desc,
-                                      style: const TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w700,
-                                        color: MooviColors.dark,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      dateFormatted,
-                                      style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Text(
-                                '${isDeposit ? '+' : ''}$amount FCFA',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w900,
-                                  color: isDeposit ? MooviColors.green : Colors.red.shade700,
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    );
-                  },
-                ),
+                const SizedBox(height: 8),
+                if (txSnap.hasError)
+                  const WalletEmptyCard(
+                    title: "Impossible de charger l'historique",
+                    text: 'Vérifiez votre connexion et réessayez.',
+                  )
+                else if (!txSnap.hasData)
+                  const Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Center(
+                      child: CircularProgressIndicator(color: Colors.white),
+                    ),
+                  )
+                else if (rides.isEmpty)
+                  const WalletEmptyCard(
+                    title: 'Aucune course pour le moment',
+                    text: 'Vos gains apparaîtront ici après chaque course.',
+                  )
+                else
+                  for (final tx in rides.take(3)) ...[
+                    WalletRideCard(tx: tx),
+                    const SizedBox(height: 14),
+                  ],
               ],
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _CenteredTitle extends StatelessWidget {
+  const _CenteredTitle(this.title);
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+      child: Column(
+        children: [
+          const Text(
+            'MOOVI',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.5,
             ),
-          );
-        },
+          ),
+          const SizedBox(height: 10),
+          Text(
+            title,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
+// -----------------------------------------------------------------------------
+// Solde + sélecteur de période
+// -----------------------------------------------------------------------------
+
+class _BalanceHeader extends StatelessWidget {
+  const _BalanceHeader({
+    required this.balance,
+    required this.period,
+    required this.onPeriodChanged,
+  });
+
+  final int balance;
+  final WalletPeriod period;
+  final ValueChanged<WalletPeriod> onPeriodChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Solde total',
+                style: TextStyle(
+                  fontSize: 15,
+                  color: Colors.white.withValues(alpha: 0.9),
+                ),
+              ),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  formatFcfa(balance),
+                  style: const TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 12),
+        PopupMenuButton<WalletPeriod>(
+          initialValue: period,
+          onSelected: onPeriodChanged,
+          color: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          itemBuilder: (_) => [
+            for (final p in WalletPeriod.values)
+              PopupMenuItem(value: p, child: Text(p.label)),
+          ],
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(12, 6, 8, 6),
+            margin: const EdgeInsets.only(bottom: 6),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  period.label,
+                  style: const TextStyle(fontSize: 14, color: kWalletInk),
+                ),
+                const SizedBox(width: 10),
+                const Icon(Icons.keyboard_arrow_down_rounded,
+                    size: 20, color: kWalletInk),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _RechargeRow extends StatelessWidget {
+  const _RechargeRow({required this.driverId, required this.blocked});
+  final String driverId;
+  final bool blocked;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (blocked) ...[
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFE1DE),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.warning_amber_rounded, color: Color(0xFFC62828)),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Solde insuffisant : rechargez pour continuer à recevoir des courses.',
+                    style: TextStyle(fontSize: 12.5, color: Color(0xFF8E1B1B)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+        ],
+        SizedBox(
+          height: 40,
+          child: ElevatedButton.icon(
+            onPressed: () =>
+                showRechargeWalletSheet(context: context, driverId: driverId),
+            icon: const Icon(Icons.add_card_rounded, size: 18),
+            label: const Text(
+              'Recharger mon compte',
+              style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: MooviGradient.end,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              shape: const StadiumBorder(),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Graphique des gains nets
+// -----------------------------------------------------------------------------
+
+class _Bucket {
+  _Bucket(this.label);
+  final String label;
+  double value = 0;
+}
+
+const _weekDays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+const _months = [
+  'Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin',
+  'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc',
+];
+
+/// Découpe la période courante en sous-périodes et y cumule les gains nets.
+/// Retourne les seaux et l'index de la sous-période en cours.
+(List<_Bucket>, int) _buildBuckets(List<WalletTx> rides, WalletPeriod period) {
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  late final List<_Bucket> buckets;
+  late final int current;
+  late final int? Function(DateTime d) indexOf;
+
+  switch (period) {
+    case WalletPeriod.week:
+      final monday = today.subtract(Duration(days: today.weekday - 1));
+      buckets = [for (final d in _weekDays) _Bucket(d)];
+      current = today.weekday - 1;
+      indexOf = (d) {
+        final i = DateTime(d.year, d.month, d.day).difference(monday).inDays;
+        return i >= 0 && i < 7 ? i : null;
+      };
+    case WalletPeriod.month:
+      final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
+      final count = (daysInMonth - 1) ~/ 7 + 1;
+      buckets = [for (var i = 1; i <= count; i++) _Bucket('S$i')];
+      current = (now.day - 1) ~/ 7;
+      indexOf = (d) => d.year == now.year && d.month == now.month
+          ? (d.day - 1) ~/ 7
+          : null;
+    case WalletPeriod.year:
+      buckets = [for (final m in _months) _Bucket(m)];
+      current = now.month - 1;
+      indexOf = (d) => d.year == now.year ? d.month - 1 : null;
+  }
+
+  for (final tx in rides) {
+    final net = tx.net;
+    // Date absente = écriture serveur en attente -> maintenant.
+    final i = indexOf(tx.date ?? now);
+    if (net != null && i != null) buckets[i].value += net.toDouble();
+  }
+  return (buckets, current);
+}
+
+class _EarningsChart extends StatelessWidget {
+  const _EarningsChart({required this.rides, required this.period});
+
+  final List<WalletTx> rides;
+  final WalletPeriod period;
+
+  @override
+  Widget build(BuildContext context) {
+    final (buckets, current) = _buildBuckets(rides, period);
+    final maxValue = buckets.fold<double>(0, (m, b) => math.max(m, b.value));
+    final maxY = maxValue <= 0 ? 10000.0 : _niceCeil(maxValue * 1.15);
+    final barWidth = buckets.length > 7 ? 14.0 : 26.0;
+
+    const axisStyle = TextStyle(color: Colors.white, fontSize: 11);
+
+    return BarChart(
+      BarChartData(
+        maxY: maxY,
+        minY: 0,
+        alignment: BarChartAlignment.spaceAround,
+        gridData: const FlGridData(show: false),
+        borderData: FlBorderData(
+          show: true,
+          border: Border(
+            left: BorderSide(color: Colors.white.withValues(alpha: 0.6)),
+            bottom: BorderSide(color: Colors.white.withValues(alpha: 0.6)),
+          ),
+        ),
+        titlesData: FlTitlesData(
+          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 40,
+              interval: maxY / 4,
+              getTitlesWidget: (value, meta) {
+                if (value == 0) return const SizedBox.shrink();
+                return SideTitleWidget(
+                  meta: meta,
+                  child: Text(formatCompact(value), style: axisStyle),
+                );
+              },
+            ),
+          ),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 28,
+              getTitlesWidget: (value, meta) {
+                final i = value.toInt();
+                if (i < 0 || i >= buckets.length) return const SizedBox.shrink();
+                return SideTitleWidget(
+                  meta: meta,
+                  child: Text(
+                    buckets[i].label,
+                    style: axisStyle.copyWith(
+                      fontSize: buckets.length > 7 ? 9.5 : 12,
+                      fontWeight: i == current ? FontWeight.w700 : FontWeight.w400,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+        barTouchData: BarTouchData(
+          touchTooltipData: BarTouchTooltipData(
+            getTooltipColor: (_) => Colors.white,
+            tooltipBorderRadius: BorderRadius.circular(8),
+            getTooltipItem: (group, _, rod, __) => BarTooltipItem(
+              formatFcfa(rod.toY),
+              const TextStyle(
+                color: kWalletInk,
+                fontWeight: FontWeight.w700,
+                fontSize: 12,
+              ),
+            ),
+          ),
+        ),
+        barGroups: [
+          for (var i = 0; i < buckets.length; i++)
+            BarChartGroupData(
+              x: i,
+              barRods: [
+                BarChartRodData(
+                  toY: buckets[i].value,
+                  width: barWidth,
+                  borderRadius: BorderRadius.circular(5),
+                  borderSide: const BorderSide(color: Colors.white, width: 1),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: i == current
+                        ? const [MooviGradient.end, Colors.black]
+                        : const [Color(0xFF2A1503), Colors.black],
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// Arrondit vers le haut à une valeur « ronde » (1, 2, 2.5, 5 × 10^n).
+  static double _niceCeil(double v) {
+    final exp = math.pow(10, (math.log(v) / math.ln10).floor()).toDouble();
+    for (final m in const [1.0, 2.0, 2.5, 5.0, 10.0]) {
+      if (v <= m * exp) return m * exp;
+    }
+    return 10 * exp;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Encart commission
+// -----------------------------------------------------------------------------
+
+class _CommissionCard extends StatelessWidget {
+  const _CommissionCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final pct = (kMooviCommissionRate * 100).round();
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFD3A6),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.6)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFC28A),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Icon(Icons.info_rounded, color: MooviGradient.brownCard),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Commission plateforme : $pct %',
+                  style: const TextStyle(
+                    fontSize: 15.5,
+                    fontWeight: FontWeight.w700,
+                    color: kWalletInk,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Prélevée automatiquement sur chaque course pour garantir le service MOOVI.',
+                  style: TextStyle(fontSize: 12, height: 1.4, color: kWalletInk),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

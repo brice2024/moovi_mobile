@@ -174,7 +174,7 @@ class _ActiveRidePageState extends State<ActiveRidePage> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
-                      'Commission: ${(finalPrice * 0.15).round()} FCFA (15%)',
+                      'Commission: ${(finalPrice * kMooviCommissionRate).round()} FCFA (${(kMooviCommissionRate * 100).round()}%)',
                       style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: MooviColors.orange),
                     ),
                   ),
@@ -198,21 +198,20 @@ class _ActiveRidePageState extends State<ActiveRidePage> {
                     provider: 'cash',
                   );
 
-                  // 2. Déduire la commission plateforme (15%) du portefeuille chauffeur
+                  // 2. Déduire la commission plateforme du portefeuille chauffeur
                   if (uid != null) {
                     await DriverService.instance.deductRideCommission(
                       driverId: uid,
                       rideId: widget.offer.id,
                       ridePrice: finalPrice,
-                      commissionRate: 0.15,
                     );
                   }
 
                   if (!mounted) return;
                   setState(() => _isPaid = true);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Paiement espèces confirmé ! Commission de 15% prélevée de votre portefeuille.'),
+                    SnackBar(
+                      content: Text('Paiement espèces confirmé ! Commission de ${(kMooviCommissionRate * 100).round()}% prélevée de votre portefeuille.'),
                       backgroundColor: MooviColors.green,
                     ),
                   );

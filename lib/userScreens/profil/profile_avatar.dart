@@ -15,7 +15,17 @@ class ProfileAvatar extends StatelessWidget {
     this.file,
     this.badgeIcon = Icons.edit_rounded,
     this.onTap,
+    this.ringColor = AppColors.primary,
+    this.badgeColor = AppColors.primary,
+    this.badgeIconColor = Colors.white,
   });
+
+  /// Couleur de l'anneau autour de la photo.
+  final Color ringColor;
+
+  /// Couleurs du petit badge (fond / icône).
+  final Color badgeColor;
+  final Color badgeIconColor;
 
   final double size;
   final String? imageUrl;
@@ -43,7 +53,7 @@ class ProfileAvatar extends StatelessWidget {
               padding: const EdgeInsets.all(3),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(color: AppColors.primary, width: 3),
+                border: Border.all(color: ringColor, width: 3),
               ),
               child: Container(
                 decoration: const BoxDecoration(
@@ -62,11 +72,18 @@ class ProfileAvatar extends StatelessWidget {
                   width: badgeSize,
                   height: badgeSize,
                   decoration: BoxDecoration(
-                    color: AppColors.primary,
+                    color: badgeColor,
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white, width: 2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.15),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
-                  child: Icon(badgeIcon, size: badgeSize * 0.5, color: Colors.white),
+                  child: Icon(badgeIcon, size: badgeSize * 0.5, color: badgeIconColor),
                 ),
               ),
           ],
@@ -94,7 +111,7 @@ class ProfileAvatar extends StatelessWidget {
   }
 
   Widget _placeholder() => Container(
-        color: AppColors.cream.withOpacity(0.6),
+        color: AppColors.cream.withValues(alpha: 0.6),
         child: Icon(Icons.person_rounded, size: size * 0.5, color: AppColors.primary),
       );
 }

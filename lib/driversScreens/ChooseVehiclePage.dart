@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:moovi/driversScreens/CarInfos.dart';
 import 'package:moovi/driversScreens/MotoInfos.dart';
+import 'package:moovi/widgets/moovi_scaffold.dart';
 
-import '../theme/app_colors.dart';
+const _ink = Color(0xFF3A2208);
 
 enum VehicleType { car, moto }
 
@@ -17,71 +18,95 @@ class _ChooseVehiclePageState extends State<ChooseVehiclePage> {
   VehicleType? _selected;
 
   void _onContinue() {
-    if (_selected == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Veuillez sélectionner un véhicule')),
-      );
-      return;
-    }
-
-    if (_selected == VehicleType.moto) {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => Motoinfos()));
-      return;
-    }
-
-    if (_selected == VehicleType.car) {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => Carinfos()));
-      return;
-    }
+    final selected = _selected;
+    if (selected == null) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            selected == VehicleType.moto ? const Motoinfos() : const Carinfos(),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+      backgroundColor: MooviGradient.start,
+      body: MooviGradientBackground(
+        child: SafeArea(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 40),
-              const Text(
-                'Choisissez votre\nvéhicule',
-                style: TextStyle(
-                  fontSize: 28,
-                  height: 1.2,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.primary,
+              const MooviHeader(title: 'Devenir chauffeur'),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                  children: [
+                    const Text(
+                      'Choisissez votre véhicule',
+                      style: TextStyle(
+                        fontSize: 26,
+                        height: 1.2,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      'Sélectionnez le véhicule que vous utiliserez pour effectuer vos courses.',
+                      style: TextStyle(
+                        fontSize: 15,
+                        height: 1.45,
+                        color: Colors.white.withValues(alpha: 0.92),
+                      ),
+                    ),
+                    const SizedBox(height: 28),
+                    _VehicleCard(
+                      icon: Icons.directions_car_rounded,
+                      title: 'Voiture',
+                      subtitle: 'Transport de personnes',
+                      selected: _selected == VehicleType.car,
+                      onTap: () => setState(() => _selected = VehicleType.car),
+                    ),
+                    const SizedBox(height: 16),
+                    _VehicleCard(
+                      icon: Icons.two_wheeler_rounded,
+                      title: 'Moto',
+                      subtitle: 'Transport léger ou livraison',
+                      selected: _selected == VehicleType.moto,
+                      onTap: () => setState(() => _selected = VehicleType.moto),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 10),
-              const Text(
-                'Sélectionnez le véhicule que vous\nutiliserez pour effectuer vos courses.',
-                style: TextStyle(
-                  fontSize: 14,
-                  height: 1.4,
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 62,
+                  child: ElevatedButton(
+                    onPressed: _selected == null ? null : _onContinue,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: MooviGradient.end,
+                      disabledBackgroundColor: Colors.white.withValues(alpha: 0.35),
+                      disabledForegroundColor: Colors.white.withValues(alpha: 0.8),
+                      elevation: _selected == null ? 0 : 6,
+                      shadowColor: Colors.black26,
+                      shape: const StadiumBorder(),
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text('Continuer',
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                        SizedBox(width: 10),
+                        Icon(Icons.arrow_forward_rounded, size: 22),
+                      ],
+                    ),
+                  ),
                 ),
               ),
-              const SizedBox(height: 56),
-              _VehicleCard(
-                icon: Icons.directions_car_rounded,
-                title: 'Voiture',
-                subtitle: 'Transport de\npersonnes',
-                selected: _selected == VehicleType.car,
-                onTap: () => setState(() => _selected = VehicleType.car),
-              ),
-              const SizedBox(height: 22),
-              _VehicleCard(
-                icon: Icons.two_wheeler_rounded,
-                title: 'Moto',
-                subtitle: 'Transport léger ou\nlivraison',
-                selected: _selected == VehicleType.moto,
-                onTap: () => setState(() => _selected = VehicleType.moto),
-              ),
-              const Spacer(),
-              _ContinueButton(onPressed: _onContinue),
-              const SizedBox(height: 24),
             ],
           ),
         ),
@@ -107,117 +132,67 @@ class _VehicleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(
-            color: selected ? AppColors.primary : Colors.grey.shade200,
-            width: selected ? 1.8 : 1.5,
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: selected ? Colors.white : MooviGradient.card,
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(
+              color: selected ? MooviGradient.brownCard : Colors.transparent,
+              width: 2,
+            ),
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(12),
+          child: Row(
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: selected ? MooviGradient.end : Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(icon,
+                    size: 28, color: selected ? Colors.white : _ink),
               ),
-              child: Icon(icon, size: 28, color: AppColors.darkBlue),
-            ),
-            const SizedBox(width: 18),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                        color: _ink,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      height: 1.35,
-                      color: AppColors.primary,
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: _ink.withValues(alpha: 0.7),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            const Icon(
-              Icons.chevron_right_rounded,
-              size: 22,
-              color: Color(0xFFB5B5BA),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ContinueButton extends StatelessWidget {
-  const _ContinueButton({required this.onPressed});
-
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      height: 56,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withOpacity(0.35),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: ElevatedButton(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-        ),
-        child: const Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              'CONTINUER',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w500,
-                letterSpacing: 0.5,
+              Icon(
+                selected
+                    ? Icons.check_circle_rounded
+                    : Icons.radio_button_unchecked_rounded,
+                size: 24,
+                color: selected ? MooviGradient.end : _ink.withValues(alpha: 0.4),
               ),
-            ),
-            SizedBox(width: 8),
-            Icon(Icons.arrow_forward_rounded, size: 20),
-          ],
+            ],
+          ),
         ),
       ),
     );

@@ -29,9 +29,14 @@ Future<String?> addRide({
   String rideType = 'voiture',
   String distanceText = '',
   String durationText = '',
+  DateTime? scheduledAt,
 }) async {
   final uid = currentUserId;
   if (uid.isEmpty) return null;
+
+  // Course planifiée : date de prise en charge (null = immédiate).
+  final scheduled = scheduledAt == null ? null : Timestamp.fromDate(scheduledAt);
+  final isScheduled = scheduled != null;
 
   final rideDoc = await _firestore.collection("rides").add({
     "clientId": uid,
@@ -48,6 +53,8 @@ Future<String?> addRide({
     "driverId": null,
     "isPaid": false,
     "paymentMethod": null,
+    "scheduledAt": scheduled,
+    "isScheduled": isScheduled,
     "createdAt": FieldValue.serverTimestamp(),
   });
 
@@ -67,10 +74,35 @@ Future<String?> addRide({
     "price": price,
     "currency": "XAF",
     "status": "searching",
+    "distance": distanceText,
+    "duration": durationText,
+    "scheduledAt": scheduled,
+    "isScheduled": isScheduled,
     "createdAt": FieldValue.serverTimestamp(),
   });
 
   return rideDoc.id;
+}
+
+/// Annulation d'une course par le client (recherche ou course acceptée).
+/// Met à jour `rides/{id}` et l'historique `users/{uid}/rides/{id}`.
+Future<void> cancelRide(String rideId) async {
+  final uid = currentUserId;
+  final update = {
+    "status": "cancelled",
+    "cancelledBy": "client",
+    "cancelledAt": FieldValue.serverTimestamp(),
+  };
+  final batch = _firestore.batch();
+  batch.update(_firestore.collection("rides").doc(rideId), update);
+  if (uid.isNotEmpty) {
+    batch.set(
+      _firestore.collection("users").doc(uid).collection("rides").doc(rideId),
+      update,
+      SetOptions(merge: true),
+    );
+  }
+  await batch.commit();
 }
 
 // Rechercher des chauffeurs dans un rayon (ex: 6 Km)

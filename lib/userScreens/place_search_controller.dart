@@ -165,6 +165,23 @@ class PlaceSearchController extends ChangeNotifier {
     setPlace(field, latLng);
   }
 
+  /// Remplit un champ précis avec un lieu connu (point choisi sur la carte...).
+  void fillPlace(SearchField field, String label, LatLng latLng) {
+    _active = field;
+    _fill(field, label);
+    setPlace(field, latLng);
+  }
+
+  /// Adresse lisible d'un point, ou null si le service ne répond pas.
+  Future<String?> addressFor(LatLng latLng) async {
+    try {
+      return await _service.reverseGeocode(latLng);
+    } catch (e) {
+      debugPrint('Géocodage inverse indisponible : $e');
+      return null;
+    }
+  }
+
   void _fill(SearchField field, String text) {
     // Modifier `.value` par code ne déclenche pas le onChanged du TextField,
     // donc le lieu choisi n'est pas invalidé.

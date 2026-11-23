@@ -277,6 +277,12 @@ class _OffersPageState extends State<OffersPage> {
               builder: (context, snapshot) {
                 final docs = snapshot.data?.docs ?? [];
                 List<RideOffer> offers;
+                // Date de prise en charge des courses planifiées (par id de course).
+                final scheduled = <String, DateTime>{
+                  for (final d in docs)
+                    if (d.data()['scheduledAt'] is Timestamp)
+                      d.id: (d.data()['scheduledAt'] as Timestamp).toDate(),
+                };
 
                 if (docs.isNotEmpty) {
                   offers = docs.map((d) => RideOffer.fromFirestore(d)).toList();
@@ -332,6 +338,7 @@ class _OffersPageState extends State<OffersPage> {
                       final offer = offers[i - 1];
                       return OfferCard(
                         offer: offer,
+                        scheduledAt: scheduled[offer.id],
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(builder: (_) => RideDetailsPage(offer: offer)),
@@ -352,7 +359,10 @@ class _OffersPageState extends State<OffersPage> {
 class OfferCard extends StatelessWidget {
   final RideOffer offer;
   final VoidCallback? onTap;
-  const OfferCard({super.key, required this.offer, this.onTap});
+
+  /// Date de prise en charge si la course est planifiée.
+  final DateTime? scheduledAt;
+  const OfferCard({super.key, required this.offer, this.onTap, this.scheduledAt});
 
   @override
   Widget build(BuildContext context) {
@@ -388,6 +398,13 @@ class OfferCard extends StatelessWidget {
                   style: const TextStyle(fontSize: 20, color: MooviColors.orange, fontWeight: FontWeight.w800)),
             ]),
           ]),
+          if (scheduledAt != null) ...[
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: ScheduledRideBadge(scheduledAt: scheduledAt!),
+            ),
+          ],
           const SizedBox(height: 8),
           RouteLine(from: offer.from, to: offer.to),
           const SizedBox(height: 12),
@@ -416,4 +433,34 @@ class OfferCard extends StatelessWidget {
         Text(l, style: const TextStyle(fontSize: 8, color: MooviColors.grey, fontWeight: FontWeight.w600)),
         Text(v, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
       ]);
+}
+
+/// Badge « Prévue le dd/MM à HH:mm » des courses planifiées.
+class ScheduledRideBadge extends StatelessWidget {
+  final DateTime scheduledAt;
+  const ScheduledRideBadge({super.key, required this.scheduledAt});
+
+  static String label(DateTime d) {
+    String two(int v) => v.toString().padLeft(2, '0');
+    return 'Prévue le ${two(d.day)}/${two(d.month)} à ${two(d.hour)}:${two(d.minute)}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: MooviColors.orange,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        const Icon(Icons.event_rounded, size: 12, color: Colors.white),
+        const SizedBox(width: 4),
+        Text(
+          label(scheduledAt),
+          style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w800),
+        ),
+      ]),
+    );
+  }
 }

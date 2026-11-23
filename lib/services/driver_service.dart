@@ -2,6 +2,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
+/// Taux de commission prélevé par Moovi sur chaque course (5 %).
+/// Seule source de vérité : tous les écrans et calculs utilisent cette constante.
+const double kMooviCommissionRate = 0.05;
+
 class DriverService {
   DriverService._();
   static final DriverService instance = DriverService._();
@@ -284,12 +288,12 @@ class DriverService {
   }
 
   /// Déduire la commission plateforme sur une course réglée en Cash
-  /// Exemple : Course à 3 000 FCFA à 15% de commission -> 450 FCFA déduits du portefeuille
+  /// Exemple : Course à 3 000 FCFA à 5% de commission -> 150 FCFA déduits du portefeuille
   Future<int> deductRideCommission({
     required String driverId,
     required String rideId,
     required int ridePrice,
-    double commissionRate = 0.15, // 15% par défaut
+    double commissionRate = kMooviCommissionRate,
   }) async {
     final commissionAmount = (ridePrice * commissionRate).round();
     final driverRef = _firestore.collection('drivers').doc(driverId);

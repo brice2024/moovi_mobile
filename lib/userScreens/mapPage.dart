@@ -1,55 +1,70 @@
 import 'dart:async';
+import 'dart:math' as math;
+
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:dotted_line/dotted_line.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:moovi/theme/app_colors.dart';
-import 'package:moovi/userScreens/widgets/driverOffersSheet.dart';
-import 'package:moovi/userScreens/widgets/rideSheetColors.dart';
-import 'package:moovi/widgets/UserbottomNavBar.dart';
-import '../services/itinéraire/DirectionsService.dart';
+
+import '../functions.dart';
 import '../services/driver_service.dart';
-import 'dataService.dart' hide DriverService;
+import '../services/itinéraire/DirectionsService.dart';
 import 'place_search_controller.dart';
 import 'places_service.dart';
+import 'ride/home_widgets.dart';
+import 'ride/ride_style.dart';
+import 'ride/ride_tracking_page.dart';
+import 'ride/saved_places_service.dart';
+import 'ride/schedule_picker.dart';
+import 'ride/search_panel.dart';
+import 'ride/vehicle_markers.dart';
+import 'widgets/driverOffersSheet.dart';
+import 'widgets/rideSheetColors.dart';
 
-/// Page d'affichage de la carte : Google Map + champs départ / destination
-/// avec suggestions gérées par [PlaceSearchController].
-///
-///
+/// Étapes de l'écran d'accueil client.
+enum _Stage {
+  /// Carte + pilule « Où allez-vous ? » (maquette 9).
+  home,
+
+  /// Recherche départ / destination (maquette 10).
+  search,
+
+  /// Choix d'un point sur la carte (viseur central).
+  pickOnMap,
+
+  /// « Votre offre » : type de véhicule et prix (maquette 11).
+  quote,
+
+  /// Propositions des chauffeurs (maquette 12).
+  offers,
+}
+
+/// Position d'un chauffeur disponible affiché sur la carte.
+class _DriverPin {
+  const _DriverPin(this.id, this.position, this.kind, this.city);
+  final String id;
+  final LatLng position;
+  final VehicleKind kind;
+  final String city;
+}
+
+/// Écran principal du client : carte, recherche, offre, propositions.
+/// Le suivi de course (maquettes 13-15) et la fin de course (maquette 16)
+/// sont des pages poussées par-dessus ([RideTrackingPage]).
 class MapPage extends StatefulWidget {
-  const MapPage({super.key});
+  /// Appelé par le bouton profil (en haut à droite) : bascule sur l'onglet Profil.
+  final VoidCallback? onProfileTap;
+
+  const MapPage({super.key, this.onProfileTap});
 
   @override
   State<MapPage> createState() => _MapPageState();
 }
 
 class _MapPageState extends State<MapPage> {
-  // Clé passée au lancement :
-  //   flutter run --dart-define=PLACES_API_KEY=xxx
   static const _placesApiKey = "AIzaSyBs6DVjYiLlKjtJHqRwO6qTKouJ7o0f5F4";
 
   static const _originLabel = 'Ma position';
-  static const _fieldHeight = 40.00;
-  static const _fieldGap = 10.0;
-
-
-  //Style de la map
-  String? mapStyle;
-
-  Future<void> chargerStyle() async {
-    final style = await rootBundle.loadString(
-      'assets/map_style.json',
-    );
-
-    if (!mounted) return;
-
-    setState(() {
-      mapStyle = style;
-    });
-  }
 
   final Completer<GoogleMapController> _mapController = Completer();
 
@@ -59,119 +74,54 @@ class _MapPageState extends State<MapPage> {
     country: 'ga',
   );
 
+  _Stage _stage = _Stage.home;
+
   LatLng? _currentPosition;
   String? _error;
 
   // Derniers lieux affichés sur la carte (pour ne réagir qu'aux vrais changements).
   LatLng? _shownOrigin;
   LatLng? _shownDestination;
-  Set<Marker> _markers = {};
 
-  // Dernier trajet pour lequel searchDriver a été lancé (évite les doublons).
-  String? _lastSearchKey;
-
-  //distance et temps du trajet
+  // Distance et durée du trajet départ -> destination.
   int distance = 0;
   String temps = '';
 
-  bool _showOffers = false;
+  // Course planifiée (null = maintenant).
+  DateTime? _scheduledAt;
+
+  // Course en cours de création / recherche de chauffeur.
   String? _currentRideId;
-  DriverOffer? _acceptedOffer;
-  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _currentRideSub;
+  String _currentRideType = 'voiture';
+  Stream<QuerySnapshot<Map<String, dynamic>>>? _offersStream;
+  String? _selectingOfferId;
 
-  //tracer les itinéraires
-  final DirectionsService directionsService =
-  DirectionsService();
+  // Choix d'un point sur la carte.
+  SearchField _pickField = SearchField.destination;
+  LatLng? _pickCenter;
+  String _pickLabel = '';
+  bool _pickLoading = false;
+  int _pickRequest = 0;
+
+  // Tracé de l'itinéraire.
+  final DirectionsService directionsService = DirectionsService();
   Set<Polyline> polylines = {};
-  int animationVersion = 0;
 
-
-  Future<void> tracerItineraire() async {
-    if (_shownOrigin == null ||
-        _shownDestination == null) {
-      return;
-    }
-
-    try {
-      final info = await directionsService.getRoute(
-        _shownOrigin!,
-        _shownDestination!,
-      );
-
-      if (!mounted) return;
-
-      setState(() {
-        polylines = {
-          Polyline(
-            polylineId: const PolylineId("bordure"),
-            points: info.points,
-            color: AppColors.primaryDark,
-            width: 11,
-            startCap: Cap.roundCap,
-            endCap: Cap.roundCap,
-            jointType: JointType.round,
-            zIndex: 0
-          ),
-
-          Polyline(
-            polylineId: const PolylineId("trajet"),
-            points: info.points,
-            color: AppColors.primary,
-            width: 7,
-            startCap: Cap.roundCap,
-            endCap: Cap.roundCap,
-            jointType: JointType.round,
-            zIndex: 1
-          ),
-        };
-        distance = info.distanceMeters;
-        temps = info.durationText;
-      });
-    } catch (e) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Impossible de tracer le trajet : $e"),
-        ),
-      );
-    }
-  }
-
-  Future<void> _loadCarIcon() async {
-    final icon = await BitmapDescriptor.asset(
-      const ImageConfiguration(
-        size: Size(25, 25),
-      ),
-      'assets/icon/car4.png',
-      width: 25,
-      height: 25,
-    );
-
-    if (!mounted) return;
-
-    setState(() {
-      _carIcon = icon;
-
-      // Actualiser les marqueurs existants
-      _driverMarkers = _driverMarkers.map((marker) {
-        return marker.copyWith(
-          iconParam: icon,
-        );
-      }).toSet();
-    });
-  }
-
+  // Chauffeurs disponibles (test + réels), par collection.
+  final Map<String, List<_DriverPin>> _driverPins = {};
+  final List<StreamSubscription<QuerySnapshot<Map<String, dynamic>>>> _driverSubs = [];
 
   @override
   void initState() {
     super.initState();
     _search.addListener(_onSearchChanged);
     _search.originFocus.addListener(_onOriginFocusChanged);
-    _loadCarIcon();
+    VehicleMarkerIcons.ensureLoaded().then((_) {
+      if (mounted) setState(() {});
+    });
     _initLocation();
-    chargerStyle();
-    _listenToDrivers();
+    _listenToDrivers('test_drivers');
+    _listenToDrivers('drivers');
   }
 
   @override
@@ -179,8 +129,9 @@ class _MapPageState extends State<MapPage> {
     _search.originFocus.removeListener(_onOriginFocusChanged);
     _search.removeListener(_onSearchChanged);
     _search.dispose(); // libère aussi les champs et les focus
-    _driversSubscription?.cancel();
-    _currentRideSub?.cancel();
+    for (final s in _driverSubs) {
+      s.cancel();
+    }
     super.dispose();
   }
 
@@ -227,12 +178,11 @@ class _MapPageState extends State<MapPage> {
     if (here == null) return;
 
     // Écrire par code ne déclenche pas onChanged : le lieu reste valide.
-    _search.originText.value = TextEditingValue(
+    _search.originText.value = const TextEditingValue(
       text: _originLabel,
       selection: TextSelection.collapsed(offset: _originLabel.length),
     );
     _search.setPlace(SearchField.origin, here);
-    _maybeSearchDriver();
   }
 
   void _onOriginFocusChanged() {
@@ -247,7 +197,81 @@ class _MapPageState extends State<MapPage> {
   }
 
   // ---------------------------------------------------------------------------
-  // Réaction aux changements du contrôleur de recherche
+  // Chauffeurs disponibles sur la carte
+  // ---------------------------------------------------------------------------
+  void _listenToDrivers(String collection) {
+    final sub = FirebaseFirestore.instance
+        .collection(collection)
+        .where('isAvailable', isEqualTo: true)
+        .snapshots()
+        .listen((snapshot) {
+      final pins = <_DriverPin>[];
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        final location = data['location'];
+        if (location is! GeoPoint) continue;
+        pins.add(_DriverPin(
+          '$collection/${doc.id}',
+          LatLng(location.latitude, location.longitude),
+          vehicleKindFromData(doc.id, data),
+          data['city']?.toString() ?? '',
+        ));
+      }
+      if (!mounted) return;
+      setState(() => _driverPins[collection] = pins);
+    }, onError: (error) {
+      debugPrint('Erreur chargement chauffeurs ($collection) : $error');
+    });
+    _driverSubs.add(sub);
+  }
+
+  Set<Marker> _buildMarkers() {
+    final markers = <Marker>{};
+
+    for (final pin in _driverPins.values.expand((p) => p)) {
+      markers.add(Marker(
+        markerId: MarkerId(pin.id),
+        position: pin.position,
+        icon: VehicleMarkerIcons.forKind(pin.kind),
+        anchor: const Offset(0.5, 0.5),
+        flat: true,
+        infoWindow: InfoWindow(
+          title: pin.kind == VehicleKind.moto ? 'Moto disponible' : 'Voiture disponible',
+          snippet: pin.city,
+        ),
+      ));
+    }
+
+    if (_stage == _Stage.pickOnMap) return markers;
+
+    final origin = _shownOrigin;
+    final destination = _shownDestination;
+
+    if (origin != null && origin != _currentPosition) {
+      markers.add(Marker(
+        markerId: const MarkerId('origin'),
+        position: origin,
+        icon: VehicleMarkerIcons.pickup,
+        anchor: const Offset(0.5, 0.5),
+        infoWindow: InfoWindow(title: _search.originText.text),
+      ));
+    }
+
+    if (destination != null) {
+      markers.add(Marker(
+        markerId: const MarkerId('destination'),
+        position: destination,
+        icon: VehicleMarkerIcons.destination,
+        anchor: const Offset(0.5, 0.5),
+        infoWindow: InfoWindow(title: _search.destinationText.text),
+      ));
+    }
+
+    return markers;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Recherche : réaction aux changements du contrôleur
   // ---------------------------------------------------------------------------
   Future<void> _onSearchChanged() async {
     final origin = _search.origin;
@@ -258,317 +282,329 @@ class _MapPageState extends State<MapPage> {
     _shownDestination = destination;
 
     if (!mounted) return;
-    setState(() => _markers = _buildMarkers());
-    _updateCamera();
+    setState(() {
+      if (destination == null || origin == null) {
+        polylines = {};
+        distance = 0;
+        temps = '';
+      }
+    });
+    if (_stage != _Stage.pickOnMap) _updateCamera();
 
-
-    if (_shownOrigin != null && _shownDestination!= null) {
+    if (origin != null && destination != null) {
       await tracerItineraire();
     }
-
-    if (_shownDestination == null ) {
-      polylines.clear();
-    }
-
-    if (_shownOrigin != null && _shownDestination != null) {
-      await Future.delayed(
-        const Duration(milliseconds: 1500),
-      );
-      showRideSelectionSheet(
-        context,
-        departureLat: _shownOrigin!.latitude,
-        departureLng: _shownOrigin!.longitude,
-        destinationLat: _shownDestination!.latitude,
-        destinationLng: _shownDestination!.longitude,
-        departureAddress: _search.originText.text.trim().isNotEmpty
-            ? _search.originText.text.trim()
-            : 'Point de départ',
-        destinationAddress: _search.destinationText.text.trim().isNotEmpty
-            ? _search.destinationText.text.trim()
-            : 'Destination',
-        distanceText: distance > 0 ? '${(distance / 1000).toStringAsFixed(1)} km' : '',
-        durationText: temps,
-        onConfirm: (option, price, rideId) {
-          setState(() {
-            _currentRideId = rideId;
-            _showOffers = true;
-            _acceptedOffer = null;
-          });
-        },
-      );
-    }
   }
 
-  void _acceptDriver(DriverOffer offer) async {
-    if (_currentRideId == null) return;
-    setState(() {
-      _acceptedOffer = offer;
-    });
-
-    await DriverService.instance.acceptDriverOffer(
-      rideId: _currentRideId!,
-      driverId: offer.id,
-      agreedPrice: offer.price,
-      driverName: offer.name,
-      car: offer.car,
-      plate: offer.plate,
-      photoUrl: offer.photoUrl,
-    );
-
-    _listenToCurrentRide();
-  }
-
-  void _listenToCurrentRide() {
-    if (_currentRideId == null) return;
-    _currentRideSub?.cancel();
-    _currentRideSub =
-        DriverService.instance.streamRide(_currentRideId!).listen((snap) {
-      if (!snap.exists) return;
-      final data = snap.data();
-      if (data == null) return;
-
-      final status = data['status']?.toString();
-      final isPaid = data['isPaid'] == true;
-
-      // Lorsque la course est terminée par le chauffeur (règlement en Espèces Cash)
-      if (status == 'completed' && mounted) {
-        _currentRideSub?.cancel();
-        final amount = (data['agreedPrice'] as num?)?.toInt() ??
-            (data['price'] as num?)?.toInt() ??
-            2000;
-
-        showModalBottomSheet(
-          context: context,
-          isDismissible: false,
-          enableDrag: false,
-          backgroundColor: Colors.transparent,
-          builder: (_) => Container(
-            padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 44,
-                  height: 5,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Container(
-                  width: 64,
-                  height: 64,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFE8F5E9),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.check_circle_rounded, color: Color(0xFF2E7D32), size: 42),
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Vous êtes arrivé à destination !',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.background),
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  'Veuillez remettre le règlement en espèces au chauffeur.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 13, color: Colors.grey),
-                ),
-                const SizedBox(height: 16),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF8F9FA),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.grey.shade200),
-                  ),
-                  child: Column(
-                    children: [
-                      const Text(
-                        'TOTAL À PAYER EN ESPÈCES',
-                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Colors.grey),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '$amount FCFA',
-                        style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: AppColors.primary),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 22),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      setState(() {
-                        _showOffers = false;
-                        _acceptedOffer = null;
-                        _currentRideId = null;
-                        polylines.clear();
-                      });
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Merci d\'avoir voyagé avec Moovi Gabon !'),
-                        ),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      elevation: 0,
-                    ),
-                    child: const Text('J\'ai réglé le chauffeur • Terminer', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      }
-    });
-  }
-
-  Set<Marker> _driverMarkers = {};
-  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
-  _driversSubscription;
-
-  BitmapDescriptor _carIcon = BitmapDescriptor.defaultMarker;
-
-  void _listenToDrivers() {
-    _driversSubscription = FirebaseFirestore.instance
-        .collection('test_drivers')
-        .where('isAvailable', isEqualTo: true)
-        .snapshots()
-        .listen((snapshot) {
-      final markers = <Marker>{};
-
-      for (final doc in snapshot.docs) {
-        final data = doc.data();
-        final location = data['location'];
-
-        if (location is! GeoPoint) continue;
-
-        markers.add(
-          Marker(
-            markerId: MarkerId(doc.id),
-            position: LatLng(
-              location.latitude,
-              location.longitude,
-            ),
-            icon: _carIcon,
-            infoWindow: InfoWindow(
-              title: 'Chauffeur ${doc.id}',
-              snippet: data['city']?.toString() ?? '',
-            ),
-          ),
-        );
-      }
-
-      if (!mounted) return;
-
-      setState(() {
-        _driverMarkers = markers;
-      });
-    }, onError: (error) {
-      debugPrint('Erreur chargement chauffeurs : $error');
-    });
-  }
-
-  Set<Marker> _buildMarkers() {
-    final markers = <Marker>{};
-
+  Future<void> tracerItineraire() async {
     final origin = _shownOrigin;
     final destination = _shownDestination;
+    if (origin == null || destination == null) return;
 
-    // Ajouter tous les chauffeurs disponibles
-    markers.addAll(_driverMarkers);
+    try {
+      final info = await directionsService.getRoute(origin, destination);
+      if (!mounted) return;
+      // Le trajet a pu changer pendant le calcul.
+      if (origin != _shownOrigin || destination != _shownDestination) return;
 
-    // Marqueur du point de départ
-    if (origin != null && origin != _currentPosition) {
-      markers.add(
-        Marker(
-          markerId: const MarkerId('origin'),
-          position: origin,
-          icon: BitmapDescriptor.defaultMarkerWithHue(
-            BitmapDescriptor.hueAzure,
+      setState(() {
+        polylines = {
+          Polyline(
+            polylineId: const PolylineId("bordure"),
+            points: info.points,
+            color: AppRouteColors.border,
+            width: 9,
+            startCap: Cap.roundCap,
+            endCap: Cap.roundCap,
+            jointType: JointType.round,
+            zIndex: 0,
           ),
-        ),
+          Polyline(
+            polylineId: const PolylineId("trajet"),
+            points: info.points,
+            color: RideColors.orange,
+            width: 5,
+            startCap: Cap.roundCap,
+            endCap: Cap.roundCap,
+            jointType: JointType.round,
+            zIndex: 1,
+          ),
+        };
+        distance = info.distanceMeters;
+        temps = info.durationText;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Impossible de tracer le trajet : $e")),
       );
     }
+  }
 
-    // Marqueur de destination
-    if (destination != null) {
-      markers.add(
-        Marker(
-          markerId: const MarkerId('destination'),
-          position: destination,
-          infoWindow: InfoWindow(
-            title: _search.destinationText.text,
-          ),
-        ),
-      );
-    }
+  String get _distanceText =>
+      distance > 0 ? '${(distance / 1000).toStringAsFixed(1).replaceAll('.', ',')} km' : '';
 
-    return markers;
+  String get _originAddress {
+    final t = _search.originText.text.trim();
+    return t.isNotEmpty ? t : 'Point de départ';
+  }
+
+  String get _destinationAddress {
+    final t = _search.destinationText.text.trim();
+    return t.isNotEmpty ? t : 'Destination';
   }
 
   // ---------------------------------------------------------------------------
-  // Sélection d'une suggestion + déclenchement de searchDriver
+  // Navigation entre les étapes
   // ---------------------------------------------------------------------------
+  void _openSearch() {
+    setState(() => _stage = _Stage.search);
+    if (_search.destination == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _stage == _Stage.search) {
+          _search.destinationFocus.requestFocus();
+        }
+      });
+    }
+  }
+
+  void _closeSearch() {
+    FocusScope.of(context).unfocus();
+    _search.dismissSuggestions();
+    setState(() => _stage = _Stage.home);
+  }
+
+  /// Passe à « Votre offre » dès que départ et destination sont connus.
+  void _maybeGoToQuote() {
+    if (_search.origin == null || _search.destination == null) return;
+    FocusScope.of(context).unfocus();
+
+    final at = _scheduledAt;
+    if (at != null && at.isBefore(DateTime.now().add(kScheduleMinDelay))) {
+      setState(() => _scheduledAt = null);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text(
+          'L\'heure planifiée est trop proche : la course est repassée en « Maintenant ».',
+        ),
+      ));
+    }
+    setState(() => _stage = _Stage.quote);
+    _updateCamera();
+  }
+
   Future<void> _onSuggestionTap(PlaceSuggestion s) async {
     // Remplit le champ actif, ferme le clavier, récupère les coordonnées.
     final latLng = await _search.pickSuggestion(s);
     if (latLng == null || !mounted) return;
-    _maybeSearchDriver();
+    _maybeGoToQuote();
+  }
+
+  void _onKnownPlaceTap(KnownPlace place) {
+    // Un lieu enregistré / récent va dans le champ actif (destination par défaut).
+    _search.fillPlace(_search.active, place.fieldText, place.position);
+    _maybeGoToQuote();
   }
 
   void _onClear(SearchField field) {
     _search.clear(field);
-    if (field == SearchField.destination) {
-      _lastSearchKey = null;
-
-      // TODO : annuler la recherche de chauffeur en cours si nécessaire.
-
-    }
     _search.focusFor(field).requestFocus();
   }
 
-  /// Lance searchDriver dès que le départ ET la destination sont choisis.
-  void _maybeSearchDriver() {
-    final origin = _search.origin;
-    final destination = _search.destination;
-    if (origin == null || destination == null) return;
-
-    final key = '${origin.latitude},${origin.longitude}'
-        '>${destination.latitude},${destination.longitude}';
-    if (key == _lastSearchKey) return; // même trajet : déjà lancé
-    _lastSearchKey = key;
-
-    searchDriver(origin: origin, destination: destination).catchError((_) {
-      _lastSearchKey = null; // permet de relancer en cas d'échec
-    });
-
+  Future<void> _onScheduleTap() async {
+    final choice = await showSchedulePicker(context, initial: _scheduledAt);
+    if (choice == null || !mounted) return;
+    setState(() => _scheduledAt = choice.at);
   }
 
-  /// À implémenter : recherche d'un chauffeur pour ce trajet.
-  Future<void> searchDriver({
-    required LatLng origin,
-    required LatLng destination,
-  }) async {
-    // TODO : appel API / provider / Bloc pour trouver un chauffeur.
-    debugPrint('searchDriver: $origin -> $destination');
-    print("ojifjebfjneeefd81d54d84d15v4dvv8v");
+  // ---------------------------------------------------------------------------
+  // Choix d'un point sur la carte
+  // ---------------------------------------------------------------------------
+  Future<void> _startPickOnMap(SearchField field) async {
+    FocusScope.of(context).unfocus();
+    _search.dismissSuggestions();
+    final start = (field == SearchField.origin ? _search.origin : _search.destination) ??
+        _currentPosition;
+    setState(() {
+      _pickField = field;
+      _stage = _Stage.pickOnMap;
+      _pickCenter = start;
+      _pickLabel = '';
+    });
+    if (start != null) {
+      final c = await _mapController.future;
+      await c.animateCamera(CameraUpdate.newLatLngZoom(start, 17));
+      _resolvePickAddress();
+    }
+  }
+
+  void _onCameraMove(CameraPosition position) {
+    if (_stage != _Stage.pickOnMap) return;
+    _pickCenter = position.target;
+  }
+
+  void _onCameraIdle() {
+    if (_stage != _Stage.pickOnMap) return;
+    _resolvePickAddress();
+  }
+
+  Future<void> _resolvePickAddress() async {
+    final center = _pickCenter;
+    if (center == null) return;
+    final id = ++_pickRequest;
+    setState(() => _pickLoading = true);
+    final address = await _search.addressFor(center);
+    if (!mounted || id != _pickRequest) return;
+    setState(() {
+      _pickLoading = false;
+      _pickLabel = address ?? _coordinatesLabel(center);
+    });
+  }
+
+  String _coordinatesLabel(LatLng p) =>
+      'Point choisi (${p.latitude.toStringAsFixed(5)}, ${p.longitude.toStringAsFixed(5)})';
+
+  void _confirmPick() {
+    final center = _pickCenter;
+    if (center == null) return;
+    final label = _pickLabel.isNotEmpty ? _pickLabel : _coordinatesLabel(center);
+    _search.fillPlace(_pickField, label, center);
+    setState(() => _stage = _Stage.search);
+    _updateCamera();
+    _maybeGoToQuote();
+  }
+
+  void _cancelPick() {
+    _pickRequest++;
+    setState(() {
+      _stage = _Stage.search;
+      _pickLoading = false;
+    });
+    _updateCamera();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Course : création, offres, acceptation
+  // ---------------------------------------------------------------------------
+  void _onRideCreated(RideOption option, double price, String? rideId) {
+    if (rideId == null) return;
+    setState(() {
+      _currentRideId = rideId;
+      _currentRideType = option.id;
+      _offersStream = DriverService.instance.streamRideOffers(rideId);
+      _stage = _Stage.offers;
+    });
+  }
+
+  Future<void> _cancelSearch() async {
+    final rideId = _currentRideId;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Annuler la recherche ?'),
+        content: const Text(
+          'Votre demande sera retirée et les chauffeurs ne pourront plus vous faire d\'offre.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Continuer'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Annuler la course'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    if (rideId != null) {
+      cancelRide(rideId).catchError((e) => debugPrint('Annulation course : $e'));
+    }
+    setState(() {
+      _currentRideId = null;
+      _offersStream = null;
+      _stage = _Stage.quote;
+    });
+  }
+
+  Future<void> _acceptDriver(DriverOffer offer) async {
+    final rideId = _currentRideId;
+    final origin = _shownOrigin;
+    final destination = _shownDestination;
+    if (rideId == null || origin == null || destination == null) return;
+    if (_selectingOfferId != null) return;
+    setState(() => _selectingOfferId = offer.id);
+
+    try {
+      await DriverService.instance.acceptDriverOffer(
+        rideId: rideId,
+        driverId: offer.id,
+        agreedPrice: offer.price,
+        driverName: offer.name,
+        car: offer.car,
+        plate: offer.plate,
+        photoUrl: offer.photoUrl,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _selectingOfferId = null); // réactive « Choisir »
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Impossible de choisir ce chauffeur : $e'),
+      ));
+      return;
+    }
+    if (!mounted) return;
+
+    // Suivi de la course (statuts accepted → driver_arrived → in_progress
+    // → completed / cancelled), puis fin de course.
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => RideTrackingPage(
+        rideId: rideId,
+        pickup: origin,
+        destination: destination,
+        from: _originAddress,
+        to: _destinationAddress,
+        offer: offer,
+        rideType: _currentRideType,
+        distanceText: _distanceText,
+        durationText: temps,
+      ),
+    ));
+    if (mounted) _resetAfterRide();
+  }
+
+  /// Retour à l'accueil après une course (terminée ou annulée).
+  void _resetAfterRide() {
+    _search.clear(SearchField.destination);
+    _search.dismissSuggestions();
+    setState(() {
+      _stage = _Stage.home;
+      _currentRideId = null;
+      _offersStream = null;
+      _selectingOfferId = null;
+      _scheduledAt = null;
+      polylines = {};
+      distance = 0;
+      temps = '';
+    });
+    _useCurrentLocationAsOrigin();
+    _updateCamera();
+  }
+
+  /// Bouton retour système : remonte d'une étape.
+  void _onSystemBack() {
+    switch (_stage) {
+      case _Stage.home:
+        break;
+      case _Stage.search:
+        _closeSearch();
+      case _Stage.pickOnMap:
+        _cancelPick();
+      case _Stage.quote:
+        setState(() => _stage = _Stage.search);
+      case _Stage.offers:
+        _cancelSearch();
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -581,12 +617,12 @@ class _MapPageState extends State<MapPage> {
 
     if (to == null) {
       if (from != null) {
-        await controller.animateCamera(CameraUpdate.newLatLngZoom(from, 16));
+        await controller.animateCamera(CameraUpdate.newLatLngZoom(from, 15.5));
       }
       return;
     }
     if (from == null) {
-      await controller.animateCamera(CameraUpdate.newLatLngZoom(to, 17));
+      await controller.animateCamera(CameraUpdate.newLatLngZoom(to, 16));
       return;
     }
 
@@ -600,142 +636,21 @@ class _MapPageState extends State<MapPage> {
         from.longitude > to.longitude ? from.longitude : to.longitude,
       ),
     );
-    await controller.animateCamera(CameraUpdate.newLatLngBounds(bounds, 100));
+    try {
+      await controller.animateCamera(CameraUpdate.newLatLngBounds(bounds, 80));
+    } catch (_) {}
   }
-
-  Future<void> _recenter() async {
-    final pos = _currentPosition;
-    if (pos == null) return;
-    final controller = await _mapController.future;
-    await controller.animateCamera(CameraUpdate.newLatLngZoom(pos, 20));
-  }
-
 
   // ---------------------------------------------------------------------------
   // UI
   // ---------------------------------------------------------------------------
 
-  /// Champ de saisie personnalisé, relié au contrôleur de recherche.
-  Widget _buildPlaceField({
-    required SearchField field,
-    required String hint,
-  }) {
-    final text = _search.textFor(field);
-
-    return SizedBox(
-      height: _fieldHeight,
-      child: TextField(
-        controller: text,
-        focusNode: _search.focusFor(field),
-        onChanged: (t) => _search.onQueryChanged(field, t),
-        textInputAction: TextInputAction.search,
-        textAlignVertical: TextAlignVertical.center,
-        style: TextStyle(
-          fontSize: 13
-        ),
-        decoration: InputDecoration(
-          hintText: hint,
-          suffixIcon: ValueListenableBuilder<TextEditingValue>(
-            valueListenable: text,
-            builder: (_, value, __) => value.text.isEmpty
-                ? const SizedBox.shrink()
-                : IconButton(
-              icon: const Icon(Icons.close),
-              onPressed: () => _onClear(field),
-            ),
-          ),
-          filled: true,
-          fillColor: Colors.grey[100],
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: BorderSide.none,
-          ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-        ),
-      ),
-    );
-  }
-
-  /// Sous les champs : erreur, suggestions, chargement, sinon dernières destinations.
-  Widget _buildSuggestionsOrRecents() {
-    if (_search.error != null) {
-      return Padding(
-        padding: const EdgeInsets.all(12),
-        child: Text(_search.error!, style: const TextStyle(color: Colors.red)),
-      );
-    }
-
-    final suggestions = _search.suggestions;
-
-    if (suggestions.isNotEmpty) {
-      return ConstrainedBox(
-        constraints: const BoxConstraints(maxHeight: 260),
-        child: ListView.separated(
-          shrinkWrap: true,
-          padding: const EdgeInsets.only(top: 8),
-          itemCount: suggestions.length,
-          separatorBuilder: (_, __) => const Divider(height: 1),
-          itemBuilder: (_, i) {
-            final s = suggestions[i];
-            return ListTile(
-              dense: true,
-              leading: const Icon(Icons.location_on_outlined),
-              title: Text(s.mainText, maxLines: 1, overflow: TextOverflow.ellipsis),
-              subtitle: s.secondaryText.isEmpty
-                  ? null
-                  : Text(s.secondaryText, maxLines: 1, overflow: TextOverflow.ellipsis),
-              onTap: () => _onSuggestionTap(s),
-            );
-          },
-        ),
-      );
-    }
-
-    if (_search.isLoading) {
-      return const Padding(
-        padding: EdgeInsets.all(12),
-        child: Center(
-          child: SizedBox(
-            height: 20,
-            width: 20,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-        ),
-      );
-    }
-    
-    return Text("");
-
-    //3 dernières destinations
-
-    /*
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 10),
-      height: 60,
-      child: const Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Icon(Icons.access_time_outlined, size: 18,),
-          SizedBox(width: 12,),
-          Column(mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,children: [
-              Text("Arribat Center", style: TextStyle(
-                  fontSize: 14
-              ),),
-
-              Text("Avenue Omar Ibn al Khattab")
-            ],
-          ),
-
-        ],
-      ),
-    );*/
-  }
+  /// Marge basse : la barre d'onglets flotte au-dessus de la carte.
+  double _navInset(BuildContext context) =>
+      MediaQuery.of(context).padding.bottom + 100;
 
   @override
   Widget build(BuildContext context) {
-
     final position = _currentPosition;
 
     if (_error != null) {
@@ -761,348 +676,193 @@ class _MapPageState extends State<MapPage> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    return Stack(
-      children: [
-        GoogleMap(
-          initialCameraPosition: CameraPosition(target: position, zoom: 15.5),
-          onMapCreated: (c) {
-            if (!_mapController.isCompleted) _mapController.complete(c);
-          },
-          polylines: polylines,
-          markers: _buildMarkers(),
-          myLocationEnabled: true,
-          myLocationButtonEnabled: false,
-          zoomControlsEnabled: false,
-          mapToolbarEnabled: false,
-          mapType: MapType.normal,
+    final media = MediaQuery.of(context);
+    final top = media.padding.top;
+    final navInset = _navInset(context);
 
-          buildingsEnabled: false,
-          indoorViewEnabled: false,
-          trafficEnabled: false,
-
-          compassEnabled: false,
-
-          rotateGesturesEnabled: false,
-          tiltGesturesEnabled: false,
-
-          zoomGesturesEnabled: true,
-          scrollGesturesEnabled: true,
-
-          onTap: (_) {
-            FocusScope.of(context).unfocus();
-            _search.dismissSuggestions();
-          },
-        ),
-
-        if (_showOffers)
-          DriverOffersSheet(
-            offers: demoOffers, // remplace par tes vraies offres
-            onSelect: (offer) {
-              /// todo accepter le chaufeur
-              print(offer.price);
-              print(offer.car);
-              print(offer.id);
-              print(offer.arrivalMinutes);
-              // l'utilisateur a choisi un chauffeur
+    return PopScope(
+      canPop: _stage == _Stage.home,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _onSystemBack();
+      },
+      child: Stack(
+        children: [
+          GoogleMap(
+            initialCameraPosition: CameraPosition(target: position, zoom: 15.5),
+            style: kMooviDarkMapStyle,
+            onMapCreated: (c) {
+              if (!_mapController.isCompleted) _mapController.complete(c);
             },
-            onBack: () => setState(() => _showOffers = false),
+            onCameraMove: _onCameraMove,
+            onCameraIdle: _onCameraIdle,
+            polylines: _stage == _Stage.pickOnMap ? const {} : polylines,
+            markers: _buildMarkers(),
+            padding: EdgeInsets.only(top: top + 70, bottom: navInset),
+            myLocationEnabled: true,
+            myLocationButtonEnabled: false,
+            zoomControlsEnabled: false,
+            mapToolbarEnabled: false,
+            mapType: MapType.normal,
+            buildingsEnabled: false,
+            indoorViewEnabled: false,
+            trafficEnabled: false,
+            compassEnabled: false,
+            rotateGesturesEnabled: false,
+            tiltGesturesEnabled: false,
+            zoomGesturesEnabled: true,
+            scrollGesturesEnabled: true,
+            onTap: (_) {
+              if (_stage == _Stage.search) {
+                _closeSearch();
+              } else {
+                FocusScope.of(context).unfocus();
+                _search.dismissSuggestions();
+              }
+            },
           ),
 
-        // Carte de recherche : départ + destination + suggestions
-        Positioned(
-          top: 0,
-          left: 16,
-          right: 16,
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: Material(
-                elevation: 6,
-                borderRadius: BorderRadius.circular(14),
-                color: Colors.white,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SizedBox(
-                            width: 30,
-                            height: _fieldHeight * 2 + _fieldGap,
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Stack(
-                                  children: [
-                                    SizedBox(
-                                      height: _fieldHeight,
-                                      child: Center(child: Icon(Icons.circle, size: 18, color:  AppColors.primary,)),
-                                    ),
-                                    SizedBox(
-                                      height: _fieldHeight,
-                                      child: Center(child: Icon(Icons.circle, size: 14)),
-                                    ),
-                                  ],
-                                ),
-                                DottedLine(
-                                  direction: Axis.vertical,
-                                  lineLength: 10,
-                                  lineThickness: 2,
-                                  dashLength:1,
-                                  dashGapLength: 2,
-                                  dashColor: Colors.grey,
-                                ),
-                                SizedBox(
-                                  height: _fieldHeight,
-                                  child: Center(child: Icon(Icons.location_on, color:  AppColors.primary,)),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 7),
-                          Expanded(
-                            child: Column(
-                              children: [
-                                _buildPlaceField(
-                                  field: SearchField.origin,
-                                  hint: 'Point de départ',
-                                ),
-                                const SizedBox(height: _fieldGap),
-                                _buildPlaceField(
-                                  field: SearchField.destination,
-                                  hint: 'Où allez-vous ?',
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      ListenableBuilder(
-                        listenable: _search,
-                        builder: (_, __) => _buildSuggestionsOrRecents(),
-                      ),
-                    ],
+          // Petit logo en haut (maquettes 9 à 12)
+          if (_stage != _Stage.pickOnMap)
+            Positioned(
+              top: top + 2,
+              left: 0,
+              right: 0,
+              child: const IgnorePointer(
+                child: Text(
+                  'MOOVI',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.5,
                   ),
                 ),
               ),
             ),
-          ),
-        ),
 
-
-        /*
-        ElevatedButton(
-          onPressed: () async {
-            try {
-              await ImportDriversService.importDrivers();
-
-              debugPrint("Importation terminée !");
-            } catch (e) {
-              debugPrint("Erreur importation : $e");
-            }
-          },
-          child: const Text("Importer les 50 chauffeurs"),
-        )
-
-
-         */
-
-        // Bouton recentrer
-        /*
-        Positioned(
-          right: 16,
-          bottom: 24,
-          child: FloatingActionButton.small(
-            heroTag: 'recenter',
-            onPressed: _recenter,
-            child: const Icon(Icons.my_location),
-          ),
-        ),
-        */
-
-        // -------------------------------------------------------------
-        // OFFRES DES CHAUFFEURS EN DIRECT (Firestore)
-        // -------------------------------------------------------------
-        if (_showOffers && _currentRideId != null && _acceptedOffer == null)
-          Positioned.fill(
-            child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: DriverService.instance.streamRideOffers(_currentRideId!),
-              builder: (context, snapshot) {
-                final docs = snapshot.data?.docs ?? [];
-                final offers = docs
-                    .map((d) => DriverOffer.fromMap(d.id, d.data()))
-                    .toList();
-
-                return Stack(
-                  children: [
-                    DriverOffersSheet(
-                      offers: offers,
-                      onSelect: _acceptDriver,
-                      onBack: () => setState(() => _showOffers = false),
-                    ),
-                    if (offers.isEmpty)
-                      Positioned(
-                        top: MediaQuery.of(context).padding.top + 80,
-                        left: 20,
-                        right: 20,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.12),
-                                blurRadius: 10,
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            children: const [
-                              SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: AppColors.primary,
-                                ),
-                              ),
-                              SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  'Recherche de chauffeurs à proximité au Gabon...',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                  ],
-                );
-              },
-            ),
-          ),
-
-        // -------------------------------------------------------------
-        // COURSE ACCEPTÉE - CHAUFFEUR EN ROUTE
-        // -------------------------------------------------------------
-        if (_acceptedOffer != null)
-          Positioned(
-            bottom: MediaQuery.of(context).padding.bottom + 90,
-            left: 16,
-            right: 16,
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.12),
-                    blurRadius: 14,
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 24,
-                        backgroundColor: AppColors.cream,
-                        backgroundImage: _acceptedOffer!.photoUrl != null
-                            ? NetworkImage(_acceptedOffer!.photoUrl!)
-                            : null,
-                        child: _acceptedOffer!.photoUrl == null
-                            ? const Icon(Icons.person, color: AppColors.primary)
-                            : null,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _acceptedOffer!.name,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                            Text(
-                              '${_acceptedOffer!.car} • ${_acceptedOffer!.plate}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            '${_acceptedOffer!.price} FCFA',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                          const Text(
-                            'PRIX CONVENU',
-                            style: TextStyle(fontSize: 9, color: Colors.grey),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
-                        Icon(Icons.directions_car,
-                            size: 16, color: AppColors.primary),
-                        SizedBox(width: 8),
-                        Text(
-                          'Chauffeur en route vers vous...',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+          if (_stage == _Stage.home)
+            Positioned(
+              top: top + 24,
+              left: 16,
+              right: 16,
+              child: HomeSearchBar(
+                onSearchTap: _openSearch,
+                onScheduleTap: _onScheduleTap,
+                scheduleLabel: _scheduledAt == null
+                    ? 'Maintenant'
+                    : formatScheduleChip(_scheduledAt!),
+                onProfileTap: widget.onProfileTap,
               ),
             ),
-          ),
 
-      ],
+          if (_stage == _Stage.search)
+            Positioned(
+              top: top + 30,
+              left: 20,
+              right: 20,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: math.max(
+                    220.0,
+                    media.size.height - top - 30 - math.max(navInset, media.viewInsets.bottom + 16),
+                  ),
+                ),
+                child: RideSearchPanel(
+                  search: _search,
+                  onSuggestionTap: _onSuggestionTap,
+                  onKnownPlaceTap: _onKnownPlaceTap,
+                  onPickOnMap: _startPickOnMap,
+                  onClear: _onClear,
+                ),
+              ),
+            ),
+
+          if (_stage == _Stage.pickOnMap)
+            Positioned.fill(
+              child: MapPickOverlay(
+                title: _pickField == SearchField.origin
+                    ? 'Point de départ'
+                    : 'Destination',
+                addressLabel: _pickLabel.isEmpty
+                    ? 'Déplacez la carte pour placer le repère'
+                    : _pickLabel,
+                loading: _pickLoading,
+                onConfirm: _confirmPick,
+                onCancel: _cancelPick,
+                bottomInset: navInset,
+              ),
+            ),
+
+          if (_stage == _Stage.quote &&
+              _shownOrigin != null &&
+              _shownDestination != null)
+            Positioned(
+              left: 20,
+              right: 20,
+              bottom: navInset - 10,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: math.max(300.0, media.size.height - top - 30 - navInset),
+                ),
+                child: RideSelectionSheet(
+                  departureLat: _shownOrigin!.latitude,
+                  departureLng: _shownOrigin!.longitude,
+                  destinationLat: _shownDestination!.latitude,
+                  destinationLng: _shownDestination!.longitude,
+                  departureAddress: _originAddress,
+                  destinationAddress: _destinationAddress,
+                  distanceText: _distanceText,
+                  durationText: temps,
+                  scheduledAt: _scheduledAt,
+                  onBack: () => setState(() => _stage = _Stage.search),
+                  onConfirm: _onRideCreated,
+                ),
+              ),
+            ),
+
+          // Offres des chauffeurs en direct (Firestore)
+          if (_stage == _Stage.offers && _offersStream != null)
+            Positioned(
+              top: top + 30,
+              left: 20,
+              right: 20,
+              bottom: 0,
+              child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                stream: _offersStream,
+                builder: (context, snapshot) {
+                  final docs = snapshot.data?.docs ?? const [];
+                  final offers = [
+                    for (final d in docs)
+                      if (d.data()['status'] != 'rejected')
+                        DriverOffer.fromMap(d.id, d.data()),
+                  ];
+                  return DriverOffersSheet(
+                    key: ValueKey(_currentRideId),
+                    offers: offers,
+                    onSelect: _acceptDriver,
+                    onBack: _cancelSearch,
+                    from: _originAddress,
+                    to: _destinationAddress,
+                    durationText: temps,
+                    distanceText: _distanceText,
+                    selectingId: _selectingOfferId,
+                    scheduledLabel: _scheduledAt == null
+                        ? null
+                        : 'Course prévue le ${formatDayMonthHour(_scheduledAt!)}',
+                    bottomPadding: navInset + 10,
+                  );
+                },
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
 
-
+/// Couleur de la bordure du tracé (lisible sur la carte sombre).
+class AppRouteColors {
+  AppRouteColors._();
+  static const Color border = Color(0xFF7A3E05);
+}

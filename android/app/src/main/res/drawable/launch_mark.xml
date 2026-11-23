@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Symbole « oo » de Moovi (maquette 1), identique au premier frame du splash Flutter. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="66dp"
+    android:height="40dp"
+    android:viewportWidth="66"
+    android:viewportHeight="40">
+    <path
+        android:fillColor="#FFFF6B00"
+        android:pathData="M0,20 a20,20 0 1,0 40,0 a20,20 0 1,0 -40,0 Z M26,20 a20,20 0 1,0 40,0 a20,20 0 1,0 -40,0 Z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M13.6,20 a6.4,6.4 0 1,0 12.8,0 a6.4,6.4 0 1,0 -12.8,0 Z M39.6,20 a6.4,6.4 0 1,0 12.8,0 a6.4,6.4 0 1,0 -12.8,0 Z" />
+</vector>

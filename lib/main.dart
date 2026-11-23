@@ -1,10 +1,9 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:moovi/theme/app_theme.dart';
-import 'auth_wrapper.dart';
-import 'driversScreens/test/offers_page.dart';
 import 'firebase_options.dart';
 import 'services/pawapay_service.dart';
+import 'splash/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,10 +29,10 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Moovi',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      home: AuthWrapper(),
+      home: const SplashScreen(),
     );
   }
 }

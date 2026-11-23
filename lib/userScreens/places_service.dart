@@ -111,6 +111,40 @@ class PlacesService {
     );
   }
 
+  /// Adresse lisible d'un point (Geocoding API). Renvoie null si aucune
+  /// adresse n'est trouvée ; lève [PlacesException] en cas d'erreur
+  /// (API non activée sur la clé, réseau...).
+  Future<String?> reverseGeocode(
+    LatLng position, {
+    String language = 'fr',
+  }) async {
+    final uri = Uri.https(
+      'maps.googleapis.com',
+      '/maps/api/geocode/json',
+      {
+        'latlng': '${position.latitude},${position.longitude}',
+        'key': apiKey,
+        'language': language,
+      },
+    );
+
+    final json = await _getJson(uri);
+    final status = json['status'] as String?;
+    if (status == 'ZERO_RESULTS') return null;
+    _throwIfNotOk(json, status);
+
+    final results = (json['results'] as List?) ?? const [];
+    if (results.isEmpty) return null;
+    // Le premier résultat « plus code » est peu lisible : on préfère une adresse.
+    for (final r in results) {
+      final types = (r['types'] as List?)?.cast<String>() ?? const [];
+      if (types.contains('plus_code')) continue;
+      final address = r['formatted_address'] as String?;
+      if (address != null && address.isNotEmpty) return address;
+    }
+    return results.first['formatted_address'] as String?;
+  }
+
   // ---------------------------------------------------------------------------
 
   Future<Map<String, dynamic>> _getJson(Uri uri) async {
