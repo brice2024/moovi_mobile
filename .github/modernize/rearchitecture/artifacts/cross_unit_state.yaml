@@ -1,0 +1,75 @@
+flows:
+  - name: firebase-authenticated-session-to-root-gate
+    medium: framework-context
+    key: "FirebaseAuth.currentUser / authStateChanges"
+    writer:
+      unit: auth-session
+      source_loc: "lib/services/Auth.dart:10"
+    reader:
+      unit: passenger-tabs
+      source_loc: "lib/auth_wrapper.dart:12"
+    pairing: matched
+    must_preserve: true
+    must_confirm: null
+    verification_hint: "Restart with a valid stored API token and confirm the root gate restores the signed-in route; then logout/expire token and confirm it returns to sign-in."
+    notes: "The current platform-managed Firebase session is the gate for all passenger/driver screens. Target identity is API-issued JWT and user object; restoration and unauthorized response behavior are not yet implemented."
+
+  - name: authenticated-profile-to-driver-mode
+    medium: framework-context
+    key: "Firebase user uid and Firestore driver document"
+    writer:
+      unit: auth-session
+      source_loc: "lib/services/Auth.dart:145"
+    reader:
+      unit: passenger-profile
+      source_loc: "lib/userScreens/profil/profile_page.dart:186"
+    pairing: matched
+    must_preserve: true
+    must_confirm: null
+    verification_hint: "Verify profile response identifies a driver and routes to OffersPage; a non-driver routes to ChooseVehiclePage; invalid session routes to auth."
+    notes: "The role/driver branch currently checks Firebase-auth uid and Firestore fields; the API exposes user `isDriver`/role and an authenticated driver profile endpoint."
+
+  - name: profile-edit-result-to-profile
+    medium: framework-context
+    key: "Navigator pop result true"
+    writer:
+      unit: profile-edit
+      source_loc: "lib/userScreens/profil/edit_profile_page.dart:207"
+    reader:
+      unit: passenger-profile
+      source_loc: "lib/userScreens/profil/profile_page.dart:109"
+    pairing: matched
+    must_preserve: true
+    must_confirm: null
+    verification_hint: "Save or remove avatar, pop to profile and assert refreshed profile data and image state."
+    notes: "Successful save returns true; failed save remains on edit screen and reports an error."
+
+  - name: driver-offer-to-ride-detail
+    medium: framework-context
+    key: "RideOffer passed as constructor argument"
+    writer:
+      unit: driver-offers
+      source_loc: "lib/driversScreens/test/offers_page.dart:335"
+    reader:
+      unit: driver-ride-details
+      source_loc: "lib/driversScreens/test/ride_details_page.dart:13"
+    pairing: matched
+    must_preserve: true
+    must_confirm: null
+    verification_hint: "Select an API-backed available ride and ensure ride id, pickup/destination, coordinates, price and status survive navigation."
+    notes: "The current model deserializes Firestore DocumentSnapshot/GeoPoint and is incompatible with API JSON coordinates until adapted."
+
+  - name: accepted-ride-to-active-ride
+    medium: framework-context
+    key: "ride id, RideOffer, agreed price"
+    writer:
+      unit: driver-ride-details
+      source_loc: "lib/driversScreens/test/ride_details_page.dart:52"
+    reader:
+      unit: driver-active-ride
+      source_loc: "lib/driversScreens/test/active_ride_page.dart:20"
+    pairing: matched
+    must_preserve: true
+    must_confirm: null
+    verification_hint: "Accept/select a ride and verify active ride reflects API status, agreed price, driver assignment and subsequent live updates."
+    notes: "Target ride state is persisted in API SQL and delivered by Socket.IO; do not use client-side Firestore updates as a second state owner."

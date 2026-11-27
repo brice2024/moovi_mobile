@@ -1,0 +1,11 @@
+unit: driver-onboarding
+commit: false
+candidate_splits:
+  - id: "lib/driversScreens/CarInfos.dart:34-245"
+    drivers: [concern_split, reuse_split]
+    rationale: "Car and motorcycle forms duplicate long image-picker, validation, progress and document-upload lifecycles while differing in required document sets."
+    source_slice: {file: "lib/driversScreens/CarInfos.dart", lines: [34, 245]}
+  - id: "lib/driversScreens/MotoInfos.dart:34-245"
+    drivers: [concern_split, reuse_split]
+    rationale: "A second near-parallel form offers a candidate to share upload/presentation behavior while retaining distinct motorcycle fields and required documents."
+    source_slice: {file: "lib/driversScreens/MotoInfos.dart", lines: [34, 245]}

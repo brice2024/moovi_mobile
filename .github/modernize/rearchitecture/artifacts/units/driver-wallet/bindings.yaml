@@ -1,0 +1,21 @@
+unit: driver-wallet
+bindings:
+  - type: convention
+    name: "DriverWalletPage opens RechargeWalletSheet and reads Firestore wallet stream"
+    source_loc: "lib/driversScreens/wallet/driver_wallet_page.dart:28"
+    target: "DriverWalletPage/RechargeWalletSheet"
+    must_appear_in_target: true
+    notes: "Use authenticated `/api/wallet` and wallet:updated events; API transaction list is authoritative."
+  - type: convention
+    name: "PawaPay service configured from mobile startup and called directly"
+    source_loc: "lib/main.dart:15"
+    target: "RechargeWalletSheet"
+    must_appear_in_target: false
+    notes: "Remove provider client credential and direct HTTP; API config/server owns PawaPay."
+runtime_config:
+  - key: "PawaPay token and environment"
+    source_loc: "lib/main.dart:15"
+    source: code
+    default_value: "Embedded compile-time/default provider credential"
+    must_appear_in_target: false
+    notes: "Do not reproduce or retain provider credential in Flutter."

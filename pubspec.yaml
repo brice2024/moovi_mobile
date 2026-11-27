@@ -1,0 +1,73 @@
+name: moovi
+description: "une application de vtc"
+publish_to: 'none'
+version: 1.0.1+2
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  http: ^1.6.0
+  geolocator: ^14.0.0
+  flutter:
+    sdk: flutter
+
+  # Fonts
+  google_fonts: ^6.1.0
+
+  # Icons (optional, for richer icons)
+  google_maps_flutter: ^2.17.1
+  iconsax: ^0.0.8
+  google_places_flutter: ^2.1.1
+  flutter_polyline_points: ^3.1.0
+  flutter_intl_phone_field: ^0.0.7
+  flutter_launcher_icons: ^0.14.4
+  image_picker: ^1.2.4
+  dotted_line: ^3.3.0
+  flutter_secure_storage: ^11.2.0
+  socket_io_client: ^3.1.6
+  url_launcher: ^6.3.1
+  flutter_local_notifications: ^19.4.2
+
+  # State management (optional)
+  # provider: ^6.1.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/AppIcon.png"
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/icon/AppIcon.png"
+  remove_alpha_ios: true
+
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    - assets/icon/
+    - assets/
+    - assets/map_style.json
+    - assets/data/moovi_chauffeurs_gabon_50.json
+    - assets/data/moovi_chauffeurs_rabat_sale_30.json
+    - assets/icon/car4.png
+
+
+
+  fonts:
+    - family: Poppins
+      fonts:
+        - asset: assets/fonts/Poppins-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Poppins-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Poppins-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Poppins-Bold.ttf
+          weight: 700

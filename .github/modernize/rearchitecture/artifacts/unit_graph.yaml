@@ -1,0 +1,267 @@
+units:
+  - name: auth-session
+    trigger: page
+    trigger_detail: "Cold/warm app launch; phone sign-in, OTP send/resend/verify"
+    source_anchors:
+      - path: lib/main.dart
+        line: 9
+      - path: lib/auth_wrapper.dart
+        line: 6
+      - path: lib/authScreens/SignOrLogin.dart
+        line: 9
+      - path: lib/authScreens/otpVerification.dart
+        line: 9
+    exported_signature: []
+    dynamic_entrypoints: []
+    depends_on:
+      - unit: passenger-tabs
+        via: "AuthWrapper selects Pagesmanager after authenticated state"
+    shared_refs:
+      - module: auth-service
+        used_fields: [currentUser, register, login, sendOTP, verifyOTP, logout]
+
+  - name: passenger-tabs
+    trigger: page
+    trigger_detail: "Authenticated passenger tabs: map, history, profile"
+    source_anchors:
+      - path: lib/userScreens/PagesManager.dart
+        line: 8
+      - path: lib/widgets/UserbottomNavBar.dart
+        line: 4
+    exported_signature: []
+    dynamic_entrypoints: []
+    depends_on:
+      - unit: passenger-booking
+        via: "MapPage tab"
+      - unit: passenger-history
+        via: "HistoryPage tab"
+      - unit: passenger-profile
+        via: "ProfilePage tab"
+    shared_refs: []
+
+  - name: passenger-booking
+    trigger: page
+    trigger_detail: "Map, search, route preview, ride request, driver offers/selection"
+    source_anchors:
+      - path: lib/userScreens/mapPage.dart
+        line: 22
+      - path: lib/userScreens/place_search_controller.dart
+        line: 46
+      - path: lib/userScreens/places_service.dart
+        line: 35
+      - path: lib/services/itinéraire/DirectionsService.dart
+        line: 33
+      - path: lib/functions.dart
+        line: 21
+      - path: lib/userScreens/dataService.dart
+        line: 5
+      - path: lib/userScreens/widgets/rideSheetColors.dart
+        line: 119
+      - path: lib/userScreens/widgets/driverOffersSheet.dart
+        line: 76
+    exported_signature: []
+    dynamic_entrypoints: []
+    depends_on:
+      - unit: auth-session
+        via: "current authenticated passenger identity"
+    shared_refs:
+      - module: driver-service
+        used_fields: [acceptDriverOffer, streamRide, streamRideOffers]
+
+  - name: passenger-history
+    trigger: page
+    trigger_detail: "Passenger history tab"
+    source_anchors:
+      - path: lib/userScreens/history/history.dart
+        line: 6
+    exported_signature: []
+    dynamic_entrypoints: []
+    depends_on:
+      - unit: auth-session
+        via: "current authenticated user"
+    shared_refs: []
+
+  - name: passenger-profile
+    trigger: page
+    trigger_detail: "Passenger profile tab, driver-mode choice, logout"
+    source_anchors:
+      - path: lib/userScreens/profil/profile_page.dart
+        line: 15
+    exported_signature: []
+    dynamic_entrypoints: []
+    depends_on:
+      - unit: auth-session
+        via: "current user and sign-out"
+      - unit: profile-edit
+        via: "EditProfilePage navigation"
+      - unit: driver-onboarding
+        via: "ChooseVehiclePage navigation for a non-driver"
+      - unit: driver-offers
+        via: "OffersPage navigation for an existing driver"
+    shared_refs:
+      - module: auth-service
+        used_fields: [logout]
+      - module: driver-service
+        used_fields: [isDriverRegistered]
+
+  - name: profile-edit
+    trigger: page
+    trigger_detail: "Edit passenger profile and avatar"
+    source_anchors:
+      - path: lib/userScreens/profil/edit_profile_page.dart
+        line: 15
+    exported_signature: []
+    dynamic_entrypoints: []
+    depends_on:
+      - unit: passenger-profile
+        via: "Profile edit route and boolean pop result"
+    shared_refs: []
+
+  - name: driver-onboarding
+    trigger: page
+    trigger_detail: "Choose vehicle category; submit car or motorcycle and required documents"
+    source_anchors:
+      - path: lib/driversScreens/ChooseVehiclePage.dart
+        line: 9
+      - path: lib/driversScreens/CarInfos.dart
+        line: 34
+      - path: lib/driversScreens/MotoInfos.dart
+        line: 34
+    exported_signature: []
+    dynamic_entrypoints: []
+    depends_on:
+      - unit: auth-session
+        via: "authenticated user identity"
+      - unit: driver-documents
+        via: "successful registration opens document-verification status"
+      - unit: driver-offers
+        via: "successful verification continuation opens offers"
+    shared_refs: []
+
+  - name: driver-documents
+    trigger: page
+    trigger_detail: "Driver verification document summary, upload/review status"
+    source_anchors:
+      - path: lib/driversScreens/DriverDocsVerificationPage.dart
+        line: 52
+      - path: lib/driversScreens/test/document_status_page.dart
+        line: 116
+    exported_signature: []
+    dynamic_entrypoints: []
+    depends_on:
+      - unit: driver-onboarding
+        via: "vehicle document registration"
+      - unit: auth-session
+        via: "authenticated driver identity"
+    shared_refs: []
+
+  - name: driver-offers
+    trigger: page
+    trigger_detail: "Driver online/offline and available-ride offers"
+    source_anchors:
+      - path: lib/driversScreens/test/offers_page.dart
+        line: 14
+      - path: lib/driversScreens/test/ride_offer.dart
+        line: 1
+    exported_signature: []
+    dynamic_entrypoints: []
+    depends_on:
+      - unit: auth-session
+        via: "authenticated driver identity"
+      - unit: driver-ride-details
+        via: "selected RideOffer passed to details page"
+      - unit: driver-wallet
+        via: "recharge/wallet route when balance blocks availability"
+    shared_refs:
+      - module: driver-service
+        used_fields: [updateDriverAvailability, getAvailableRidesStream, streamDriverWallet]
+
+  - name: driver-ride-details
+    trigger: page
+    trigger_detail: "Inspect available ride and submit or negotiate a driver offer"
+    source_anchors:
+      - path: lib/driversScreens/test/ride_details_page.dart
+        line: 11
+      - path: lib/driversScreens/test/negotiate_price_page.dart
+        line: 6
+    exported_signature: []
+    dynamic_entrypoints: []
+    depends_on:
+      - unit: driver-offers
+        via: "RideOffer passed in constructor"
+      - unit: driver-active-ride
+        via: "accepted ride opens active-ride page"
+    shared_refs:
+      - module: driver-service
+        used_fields: [streamRide, sendDriverOffer]
+
+  - name: driver-active-ride
+    trigger: page
+    trigger_detail: "Assigned driver advances ride lifecycle and confirms settlement"
+    source_anchors:
+      - path: lib/driversScreens/test/active_ride_page.dart
+        line: 16
+    exported_signature: []
+    dynamic_entrypoints: []
+    depends_on:
+      - unit: driver-ride-details
+        via: "accepted ride id, offer and agreed price"
+      - unit: auth-session
+        via: "authenticated driver identity"
+    shared_refs:
+      - module: driver-service
+        used_fields: [streamRide, markRideAsPaid, updateRideStatus]
+
+  - name: driver-profile
+    trigger: page
+    trigger_detail: "Driver profile/settings and sign-out"
+    source_anchors:
+      - path: lib/driversScreens/test/driver_profile_page.dart
+        line: 7
+    exported_signature: []
+    dynamic_entrypoints: []
+    depends_on:
+      - unit: driver-wallet
+        via: "wallet menu navigation"
+      - unit: auth-session
+        via: "sign-out"
+    shared_refs:
+      - module: auth-service
+        used_fields: [logout]
+
+  - name: driver-wallet
+    trigger: page
+    trigger_detail: "Driver wallet balance, ledger and Mobile Money recharge"
+    source_anchors:
+      - path: lib/driversScreens/wallet/driver_wallet_page.dart
+        line: 8
+      - path: lib/driversScreens/wallet/recharge_wallet_sheet.dart
+        line: 28
+    exported_signature: []
+    dynamic_entrypoints: []
+    depends_on:
+      - unit: auth-session
+        via: "authenticated driver identity"
+    shared_refs:
+      - module: driver-service
+        used_fields: [streamDriverWallet, rechargeDriverWallet]
+
+  - name: passenger-payment
+    trigger: page
+    trigger_detail: "PayCentral sheet function; source-defined, but no invocation found"
+    source_anchors:
+      - path: lib/widgets/paycentral_payment_sheet.dart
+        line: 15
+    exported_signature:
+      - method: "Future<bool?> showPayCentralPaymentSheet({required BuildContext context, ...})"
+        source_loc: "lib/widgets/paycentral_payment_sheet.dart:15"
+        stability: may_change
+    dynamic_entrypoints: []
+    depends_on:
+      - unit: auth-session
+        via: "current user phone for payment form default"
+      - unit: driver-active-ride
+        via: "conceptual ride settlement; no call site found"
+    shared_refs:
+      - module: driver-service
+        used_fields: [markRideAsPaid]

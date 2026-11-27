@@ -1,0 +1,7 @@
+unit: auth-session
+commit: false
+candidate_splits:
+  - id: "lib/services/Auth.dart:20-165"
+    drivers: [concern_split, lifecycle_split]
+    rationale: "The service combines email credentials, phone OTP, user creation, provider session state and logout; API JWT lifecycle and UI OTP flow have distinct error/lifecycle contracts."
+    source_slice: {file: "lib/services/Auth.dart", lines: [20, 165]}

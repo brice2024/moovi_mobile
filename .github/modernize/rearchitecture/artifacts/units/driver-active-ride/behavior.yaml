@@ -1,0 +1,33 @@
+unit: driver-active-ride
+side_effects:
+  - source_loc: "lib/driversScreens/test/active_ride_page.dart:55"
+    effect: "Listens to active ride/payment state and renders status/progress."
+    must_preserve: true
+  - source_loc: "lib/driversScreens/test/active_ride_page.dart:69"
+    effect: "Advances assigned ride to arrived, in-progress, or completed state."
+    must_preserve: true
+  - source_loc: "lib/driversScreens/test/active_ride_page.dart:191"
+    effect: "Confirms cash payment through current client path after ride completion."
+    must_preserve: true
+branches:
+  - source_loc: "lib/driversScreens/test/active_ride_page.dart:102"
+    condition: "Ride reaches completed and is unpaid, or payment is already settled."
+    behavior: "Prompt for settlement once; display paid state only from API-confirmed result."
+    must_preserve: true
+  - source_loc: "../api/app/views/rides.py:567"
+    condition: "Requested transition is not allowed from the current status."
+    behavior: "Keep current status, surface transition conflict, and do not optimistically claim completion."
+    must_preserve: true
+error_paths:
+  - source_loc: "lib/driversScreens/test/active_ride_page.dart:69"
+    trigger: "Status/cash settlement API is unauthorized, fails, or ride transition conflicts."
+    outcome: "Do not update local paid/status state as success; show API error and reload authoritative ride."
+    contract: "POST /arrived,/start,/complete require assigned driver; cash confirmation requires completed unpaid ride; API returns 409 on invalid state/already paid."
+    must_preserve: true
+concurrency:
+  model: coroutine
+  tx_boundary:
+    source_loc: "../api/app/views/payments.py:194"
+    scope: "API owns locked cash settlement, commission and wallet update; client must not make split Firestore writes."
+    isolation: "row-locked API database transaction"
+    must_preserve: true

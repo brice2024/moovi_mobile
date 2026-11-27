@@ -1,0 +1,33 @@
+unit: passenger-booking
+bindings:
+  - type: convention
+    name: "MapPage owns GoogleMap renderer, device location and map interaction"
+    source_loc: "lib/userScreens/mapPage.dart:766"
+    target: "MapPage"
+    must_appear_in_target: true
+    notes: "Retain client map rendering and Geolocator capability; provider Places/Routes HTTP belongs behind Flask API."
+  - type: convention
+    name: "Firebase Firestore StreamBuilder/subscription for driver and ride offers"
+    source_loc: "lib/userScreens/mapPage.dart:449"
+    target: "MapPage"
+    must_appear_in_target: true
+    notes: "Replace data path with API current-state reads and Socket.IO event subscriptions; do not pretend arbitrary Firestore snapshots map 1:1 to socket events."
+  - type: convention
+    name: "PlaceSearchController debounced field/suggestion interaction"
+    source_loc: "lib/userScreens/place_search_controller.dart:46"
+    target: "MapPage"
+    must_appear_in_target: true
+    notes: "Retain field focus, selection, clear and recent-destination behavior; request data from `/api/maps/places/*`."
+runtime_config:
+  - key: "PLACES_API_KEY (currently embedded in map source)"
+    source_loc: "lib/userScreens/mapPage.dart:32"
+    source: code
+    default_value: "Embedded provider key"
+    must_appear_in_target: false
+    notes: "Remove from client; API owns Google Maps provider configuration."
+  - key: "Google Maps native renderer key"
+    source_loc: "android/app/build.gradle.kts:26"
+    source: code
+    default_value: "Empty unless Gradle property GOOGLE_MAPS_API_KEY supplied"
+    must_appear_in_target: true
+    notes: "Only for native map rendering SDK, restricted by Android package/signing configuration; not used for Places/Routes requests."

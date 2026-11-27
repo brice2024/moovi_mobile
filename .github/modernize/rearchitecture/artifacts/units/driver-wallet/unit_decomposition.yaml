@@ -1,0 +1,12 @@
+unit: driver-wallet
+commit: false
+candidate_splits:
+  - id: "lib/driversScreens/wallet/driver_wallet_page.dart:8-370"
+    drivers: [concern_split, lifecycle_split]
+    rationale: "Wallet summary/ledger reads and payment initiation/status polling have distinct load, retry, success and provider failure lifecycles."
+    source_slice: {file: "lib/driversScreens/wallet/driver_wallet_page.dart", lines: [8, 370]}
+
+  - id: "lib/driversScreens/wallet/recharge_wallet_sheet.dart:104-230"
+    drivers: [protocol_split, execution_model_split]
+    rationale: "Direct provider initiation and polling must become a server-side API transaction flow with asynchronous completion events."
+    source_slice: {file: "lib/driversScreens/wallet/recharge_wallet_sheet.dart", lines: [104, 230]}

@@ -1,0 +1,26 @@
+unit: driver-profile
+side_effects:
+  - source_loc: "lib/driversScreens/test/driver_profile_page.dart:89"
+    effect: "Navigates from driver profile/settings to wallet."
+    must_preserve: true
+  - source_loc: "lib/driversScreens/test/driver_profile_page.dart:144"
+    effect: "Confirms and performs user logout."
+    must_preserve: true
+branches:
+  - source_loc: "lib/driversScreens/test/driver_profile_page.dart:133"
+    condition: "Sign-out dialog is confirmed or dismissed."
+    behavior: "Only confirmed choice signs out; dismissal remains on profile."
+    must_preserve: true
+error_paths:
+  - source_loc: "lib/driversScreens/test/driver_profile_page.dart:144"
+    trigger: "API logout/revocation or local secure storage operation fails."
+    outcome: "Return to signed-out state after local credential clearing; surface/recover from API failure without restoring Firebase session."
+    contract: "POST `/api/auth/logout` requires access JWT; session-expiry handling belongs to shared auth service."
+    must_preserve: true
+concurrency:
+  model: coroutine
+  tx_boundary:
+    source_loc: "lib/services/Auth.dart:165"
+    scope: "Logout revokes the API JWT and clears local session; no application database write in Flutter."
+    isolation: "n/a"
+    must_preserve: true

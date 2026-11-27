@@ -1,0 +1,9 @@
+unit: passenger-tabs
+bindings:
+  - type: convention
+    name: "MaterialApp home is AuthWrapper; Pagesmanager builds tab-indexed pages"
+    source_loc: "lib/main.dart:31"
+    target: "MyApp/Pagesmanager"
+    must_appear_in_target: true
+    notes: "Preserve the three passenger tabs and selected-index state; session gate is owned by auth-session."
+runtime_config: []

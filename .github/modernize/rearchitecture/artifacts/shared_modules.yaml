@@ -1,0 +1,64 @@
+modules:
+  - name: auth-service
+    kind: god-class
+    source_loc: "lib/services/Auth.dart:7"
+    used_by_units: [auth-session, passenger-profile, driver-profile]
+    fields:
+      - name: currentUser
+        type: "FirebaseAuth User?"
+      - name: register
+        type: "Future<User?>"
+      - name: login
+        type: "Future<User?>"
+      - name: sendOTP
+        type: "Future<void>"
+      - name: verifyOTP
+        type: "Future<bool>"
+      - name: createOrGetUser
+        type: "Future<void>"
+      - name: logout
+        type: "Future<void>"
+    god_class: true
+    split_candidate: true
+    migration_strategy: wrap
+    notes: "One process-wide service combines email auth, phone OTP, Firestore profile creation and Firebase session access. The service is used across auth and UI units; preserve call-site behavior while changing its implementation contract."
+
+  - name: driver-service
+    kind: god-class
+    source_loc: "lib/services/driver_service.dart:5"
+    used_by_units: [passenger-booking, passenger-profile, driver-offers, driver-ride-details, driver-active-ride, driver-wallet, passenger-payment]
+    fields:
+      - name: currentUid
+        type: "String?"
+      - name: isDriverRegistered
+        type: "Future<bool>"
+      - name: getDriverData
+        type: "Future<Map<String,dynamic>?>"
+      - name: updateDriverAvailability
+        type: "Future<void>"
+      - name: getAvailableRidesStream
+        type: "Stream<QuerySnapshot>"
+      - name: streamRide
+        type: "Stream<DocumentSnapshot>"
+      - name: streamRideOffers
+        type: "Stream<QuerySnapshot>"
+      - name: sendDriverOffer
+        type: "Future<void>"
+      - name: acceptDriverOffer
+        type: "Future<void>"
+      - name: updateRideStatus
+        type: "Future<void>"
+      - name: markRideAsPaid
+        type: "Future<void>"
+      - name: streamDriverWallet
+        type: "Stream<DocumentSnapshot>"
+      - name: streamWalletTransactions
+        type: "Stream<QuerySnapshot>"
+      - name: rechargeDriverWallet
+        type: "Future<void>"
+      - name: deductRideCommission
+        type: "Future<int>"
+    god_class: true
+    split_candidate: true
+    migration_strategy: split
+    notes: "Shared client service spans identity, driver profile, rides, streaming, payment settlement, wallet recharge and commission mutation. The API already owns atomic settlement and persistence; split candidates are evidence for design only."

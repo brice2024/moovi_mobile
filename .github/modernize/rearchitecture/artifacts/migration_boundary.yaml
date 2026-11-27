@@ -1,0 +1,116 @@
+user_intent:
+  raw_request: "Migrate the complete Flutter app from Firebase to the existing Flask API, route every existing feature/provider operation through that API, preserve UI behavior, and remove Firebase runtime dependencies/config after references migrate and builds verify."
+  inferred_acceptance:
+    - "No Flutter runtime use of Firebase Auth, Firestore, Storage, or Firebase initialization/dependencies for app functionality."
+    - "Existing user-facing journeys use the Flask API; do not report success for failed provider/API calls or substitute fake/demo data."
+    - "API JWT is persisted securely, restored on restart, attached to protected HTTP and Socket.IO requests, and cleared on logout/session expiry."
+    - "OTP send/resend/verify use the existing Flask API and API-side WAHA integration."
+    - "PawaPay, PayCentral, Places and route-computation REST calls are server-side; native map rendering and device geolocation remain presentation/device concerns."
+    - "Retain the UI and preserve existing real behavioral branches, validation, loading, empty and error states."
+  cleanup_required: true
+  strategy: phased
+  runtime_reachable:
+    - lib/main.dart
+    - lib/auth_wrapper.dart
+    - lib/authScreens/SignOrLogin.dart
+    - lib/authScreens/otpVerification.dart
+    - lib/services/Auth.dart
+    - lib/functions.dart
+    - lib/services/driver_service.dart
+    - lib/userScreens/dataService.dart
+    - lib/userScreens/mapPage.dart
+    - lib/userScreens/places_service.dart
+    - lib/services/itinéraire/DirectionsService.dart
+    - lib/userScreens/history/history.dart
+    - lib/userScreens/profil/profile_page.dart
+    - lib/userScreens/profil/edit_profile_page.dart
+    - lib/driversScreens/ChooseVehiclePage.dart
+    - lib/driversScreens/CarInfos.dart
+    - lib/driversScreens/MotoInfos.dart
+    - lib/driversScreens/DriverDocsVerificationPage.dart
+    - lib/driversScreens/test/offers_page.dart
+    - lib/driversScreens/test/ride_offer.dart
+    - lib/driversScreens/test/ride_details_page.dart
+    - lib/driversScreens/test/negotiate_price_page.dart
+    - lib/driversScreens/test/active_ride_page.dart
+    - lib/driversScreens/test/driver_profile_page.dart
+    - lib/driversScreens/wallet/driver_wallet_page.dart
+    - lib/driversScreens/wallet/recharge_wallet_sheet.dart
+    - lib/services/pawapay_service.dart
+    - lib/firebase_options.dart
+  must_rewrite:
+    - path: lib/main.dart
+      reason: "App startup currently initializes Firebase and configures a direct payment-provider client with an embedded default credential."
+    - path: lib/auth_wrapper.dart
+      reason: "Authentication gate currently listens to Firebase Auth; replace with API JWT restoration/session state."
+    - path: lib/authScreens/SignOrLogin.dart
+      reason: "Phone sign-in currently submits OTP through AuthService and assumes Firebase current-user state."
+    - path: lib/authScreens/otpVerification.dart
+      reason: "OTP verify/resend currently uses Firebase verificationId and has no API token/session handling."
+    - path: lib/services/Auth.dart
+      reason: "Contains Firebase Auth/Firestore registration, login, OTP, profile initialization and logout paths."
+    - path: lib/services/driver_service.dart
+      reason: "Shared driver/ride/wallet service reads and mutates Firestore and implements payment/accounting client-side."
+    - path: lib/functions.dart
+      reason: "Creates rides and nearby-driver query directly in Firestore/GeoFire."
+    - path: lib/userScreens/dataService.dart
+      reason: "Imports bundled demo drivers into Firestore and exposes a Firestore snapshot stream."
+    - path: lib/userScreens/mapPage.dart
+      reason: "Uses Firestore for driver/current-ride/offer streams and direct Google Places/Routes clients; contains demo-offer and fixture-import paths."
+    - path: lib/userScreens/places_service.dart
+      reason: "Direct Google Places HTTP calls include client API-key parameter; map calls must use API proxy."
+    - path: lib/services/itinéraire/DirectionsService.dart
+      reason: "Direct Google Routes request includes a mobile API key; replace data request with API route contract."
+    - path: lib/userScreens/history/history.dart
+      reason: "History is a Firestore snapshot query instead of the API user's ride history."
+    - path: lib/userScreens/profil/profile_page.dart
+      reason: "Reads Firestore/FirebaseAuth for profile and driver-mode branch; logout is Firebase-backed."
+    - path: lib/userScreens/profil/edit_profile_page.dart
+      reason: "Profile updates and avatar upload/delete use Firestore and Firebase Storage."
+    - path: lib/driversScreens/CarInfos.dart
+      reason: "Car registration/doc upload writes Firebase Storage and driver Firestore records."
+    - path: lib/driversScreens/MotoInfos.dart
+      reason: "Motorcycle registration/doc upload writes Firebase Storage and driver Firestore records."
+    - path: lib/driversScreens/DriverDocsVerificationPage.dart
+      reason: "Document status is read from Firebase Auth and Firestore."
+    - path: lib/driversScreens/test/document_status_page.dart
+      reason: "Unreferenced test-folder screen still imports a Firebase-backed repository; remove or adapt it only as needed to eliminate Firebase SDK references, and do not claim it is currently reachable."
+    - path: lib/driversScreens/test/offers_page.dart
+      reason: "Driver availability/wallet/available ride query uses Firebase; empty live results fall back to fabricated demo rides."
+    - path: lib/driversScreens/test/ride_offer.dart
+      reason: "Offer model parses Firestore DocumentSnapshot/GeoPoint and supplies hard-coded demo rides."
+    - path: lib/driversScreens/test/ride_details_page.dart
+      reason: "Ride status and offer submission use Firebase-backed DriverService."
+    - path: lib/driversScreens/test/active_ride_page.dart
+      reason: "Ride updates/payment use Firebase-backed streams and client-side mutation."
+    - path: lib/driversScreens/wallet/driver_wallet_page.dart
+      reason: "Wallet view uses FirebaseAuth and Firestore stream."
+    - path: lib/driversScreens/wallet/recharge_wallet_sheet.dart
+      reason: "Direct PawaPay request followed by client-side Firestore wallet credit; replace with API pending/status contract."
+    - path: lib/services/pawapay_service.dart
+      reason: "Direct provider requests from the mobile binary; API already owns deposit initiation and status."
+    - path: lib/services/paycentral_service.dart
+      reason: "Direct provider HTTP code is used only by the unreferenced PayCentral sheet; no current call site was found. Remove it or adapt it only if design explicitly chooses to wire that disconnected flow."
+    - path: lib/widgets/paycentral_payment_sheet.dart
+      reason: "Source-defined sheet has no invocation in the scanned Dart library; its Firebase identity/direct PayCentral path is not a current reachable flow. Do not claim it is wired; remove or adapt only after explicit design disposition."
+    - path: lib/firebase_options.dart
+      reason: "Firebase SDK options are imported by startup and become obsolete only after all runtime references and generated plugin wiring are removed."
+  copy_as_is:
+    - "Existing screen layouts, navigation labels, form controls, assets, fonts, theme and presentation-only widgets, except where their displayed states depend on migrated data."
+    - "Device location permission/geolocation capability and native Google Maps map rendering; keep any Maps SDK key restricted to Android/iOS rendering and out of server API requests."
+    - "Flask API source and SQL schema for existing capabilities; do not rewrite or refactor the frozen API contract."
+  legacy_allowed_to_remain:
+    - "Firebase project data and user records outside this repository; no deletion or migration of remote user data is implied."
+    - "Existing Firebase config/generated files only during the staged cutover; not acceptable as app runtime dependencies after completion."
+  defer_cleanup:
+    - "After Flutter analysis/build and source-reference verification, remove Firebase dependencies and plugin wiring from pubspec/build files; regenerate platform plugin registrants."
+    - "After the same verification, remove only repository Firebase init/config files proven to be app-owned and no longer needed (including firebase_options.dart, firebase.json, google-services.json and Firebase Gradle plugin declarations). Preserve Firebase console/project data and any user-owned files."
+    - "Delete/revoke embedded mobile provider credentials and replace direct provider HTTP code with the existing API; coordinate credential rotation without exposing values."
+    - "Decide whether the Firestore demo-driver fixture importer is removed or represented by an explicit protected development/admin API capability. Do not send fixture/demo records to a user-facing ride/driver endpoint."
+    - "Remove demo offer fallback data; show an honest empty/error state for no live API results."
+  full_rewrite_reason: null
+  implementation_rule: >
+    Use must_rewrite as the application scope. Keep current screen presentation and use the
+    existing Flask APIs; do not convert every Flutter file or every API module. No Firebase
+    runtime or direct provider REST path may remain in active app functionality. Preserve API
+    contracts; add backend behavior only when an existing user-facing operation has a proven gap.

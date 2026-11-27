@@ -1,0 +1,15 @@
+unit: driver-documents
+bindings:
+  - type: convention
+    name: "Driver verification page subscribes to Firestore driver document"
+    source_loc: "lib/driversScreens/DriverDocsVerificationPage.dart:80"
+    target: "DriverVerificationPage/DocumentStatusPage"
+    must_appear_in_target: true
+    notes: "Use authenticated API driver/document reads; supported live admin verification events exist only if emitted by the API."
+  - type: convention
+    name: "Unreferenced test-folder DocumentStatusPage uses DriverDocumentRepository"
+    source_loc: "lib/driversScreens/test/document_status_page.dart:82"
+    target: "DocumentStatusPage"
+    must_appear_in_target: false
+    notes: "No constructor call site was found in the scanned Dart library. If intentionally wired, replace the Firestore repository with API-owned document summary/details and upload routes; do not treat it as a current reachable screen."
+runtime_config: []

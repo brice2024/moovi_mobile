@@ -1,0 +1,7 @@
+unit: driver-offers
+commit: false
+candidate_splits:
+  - id: "lib/driversScreens/test/offers_page.dart:21-95"
+    drivers: [concern_split, execution_model_split]
+    rationale: "Driver location acquisition, online state and wallet eligibility form a lifecycle separate from the live available-ride stream and offer list rendering."
+    source_slice: {file: "lib/driversScreens/test/offers_page.dart", lines: [21, 95]}

@@ -1,0 +1,15 @@
+unit: profile-edit
+bindings:
+  - type: convention
+    name: "EditProfilePage pushed from ProfilePage; image selection uses ImagePicker"
+    source_loc: "lib/userScreens/profil/edit_profile_page.dart:62"
+    target: "EditProfilePage"
+    must_appear_in_target: true
+    notes: "Retain image selection and return-result behavior; replace Firebase upload/profile write with multipart/JSON API operations."
+  - type: convention
+    name: "Firebase Storage avatar upload/delete and Firestore profile merge"
+    source_loc: "lib/userScreens/profil/edit_profile_page.dart:172"
+    target: "EditProfilePage"
+    must_appear_in_target: true
+    notes: "Equivalent API profile/avatar endpoints own file replacement and deletion."
+runtime_config: []

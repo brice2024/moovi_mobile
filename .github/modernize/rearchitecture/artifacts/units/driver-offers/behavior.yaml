@@ -1,0 +1,30 @@
+unit: driver-offers
+side_effects:
+  - source_loc: "lib/driversScreens/test/offers_page.dart:50"
+    effect: "Changes driver online state and publishes current location to make the driver eligible for rides."
+    must_preserve: true
+  - source_loc: "lib/driversScreens/test/offers_page.dart:276"
+    effect: "Lists available rides and opens ride details after a ride selection."
+    must_preserve: true
+branches:
+  - source_loc: "lib/driversScreens/test/offers_page.dart:60"
+    condition: "Driver is toggling online/offline and has/does not have location, wallet, or verification eligibility."
+    behavior: "Keep UI status accurate; surface server wallet/verification gate rather than locally overriding it."
+    must_preserve: true
+  - source_loc: "lib/driversScreens/test/offers_page.dart:281"
+    condition: "API returns live rides or no rides."
+    behavior: "Render only API rides; remove `demoOffersGabon` fallback and present true empty state."
+    must_preserve: true
+error_paths:
+  - source_loc: "lib/driversScreens/test/offers_page.dart:120"
+    trigger: "Wallet/available-rides request fails or authorization expires."
+    outcome: "Show API failure/session-expired state and stop online action if authorization or wallet gate fails."
+    contract: "GET `/api/rides/available` and `/api/wallet` require driver JWT; online may return 402 WALLET_BLOCKED or 403 verification error."
+    must_preserve: true
+concurrency:
+  model: coroutine
+  tx_boundary:
+    source_loc: "../api/app/views/drivers.py:387"
+    scope: "Availability and location write are API-owned; emits driver:availability_changed after commit."
+    isolation: "API database transaction"
+    must_preserve: true

@@ -1,0 +1,352 @@
+[
+  {
+    "driverId": "driver_001",
+    "city": "Libreville",
+    "latitude": 0.410525,
+    "longitude": 9.391851,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_002",
+    "city": "Libreville",
+    "latitude": 0.363154,
+    "longitude": 9.417617,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_003",
+    "city": "Libreville",
+    "latitude": 0.423141,
+    "longitude": 9.476571,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_004",
+    "city": "Libreville",
+    "latitude": 0.443383,
+    "longitude": 9.399902,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_005",
+    "city": "Libreville",
+    "latitude": 0.38225,
+    "longitude": 9.392474,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_006",
+    "city": "Libreville",
+    "latitude": 0.355823,
+    "longitude": 9.454296,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_007",
+    "city": "Libreville",
+    "latitude": 0.33085,
+    "longitude": 9.414449,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_008",
+    "city": "Libreville",
+    "latitude": 0.411885,
+    "longitude": 9.459442,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_009",
+    "city": "Libreville",
+    "latitude": 0.356057,
+    "longitude": 9.465205,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_010",
+    "city": "Libreville",
+    "latitude": 0.432626,
+    "longitude": 9.389445,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_011",
+    "city": "Libreville",
+    "latitude": 0.432157,
+    "longitude": 9.479358,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_012",
+    "city": "Libreville",
+    "latitude": 0.371633,
+    "longitude": 9.408812,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_013",
+    "city": "Libreville",
+    "latitude": 0.451838,
+    "longitude": 9.432357,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_014",
+    "city": "Libreville",
+    "latitude": 0.339457,
+    "longitude": 9.401173,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_015",
+    "city": "Libreville",
+    "latitude": 0.437574,
+    "longitude": 9.467084,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_016",
+    "city": "Libreville",
+    "latitude": 0.432327,
+    "longitude": 9.483465,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_017",
+    "city": "Libreville",
+    "latitude": 0.39711,
+    "longitude": 9.515105,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_018",
+    "city": "Libreville",
+    "latitude": 0.376609,
+    "longitude": 9.460365,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_019",
+    "city": "Libreville",
+    "latitude": 0.435223,
+    "longitude": 9.469008,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_020",
+    "city": "Libreville",
+    "latitude": 0.439422,
+    "longitude": 9.463656,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_021",
+    "city": "Libreville",
+    "latitude": 0.418994,
+    "longitude": 9.394557,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_022",
+    "city": "Libreville",
+    "latitude": 0.357027,
+    "longitude": 9.42622,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_023",
+    "city": "Libreville",
+    "latitude": 0.337773,
+    "longitude": 9.418863,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_024",
+    "city": "Libreville",
+    "latitude": 0.34053,
+    "longitude": 9.424737,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_025",
+    "city": "Libreville",
+    "latitude": 0.410039,
+    "longitude": 9.436028,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_026",
+    "city": "Port-Gentil",
+    "latitude": -0.730984,
+    "longitude": 8.755356,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_027",
+    "city": "Port-Gentil",
+    "latitude": -0.740272,
+    "longitude": 8.820799,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_028",
+    "city": "Port-Gentil",
+    "latitude": -0.705977,
+    "longitude": 8.791322,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_029",
+    "city": "Port-Gentil",
+    "latitude": -0.748898,
+    "longitude": 8.802121,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_030",
+    "city": "Port-Gentil",
+    "latitude": -0.749594,
+    "longitude": 8.770651,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_031",
+    "city": "Port-Gentil",
+    "latitude": -0.675243,
+    "longitude": 8.7941,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_032",
+    "city": "Port-Gentil",
+    "latitude": -0.714175,
+    "longitude": 8.798115,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_033",
+    "city": "Port-Gentil",
+    "latitude": -0.688443,
+    "longitude": 8.80634,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_034",
+    "city": "Port-Gentil",
+    "latitude": -0.743686,
+    "longitude": 8.739389,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_035",
+    "city": "Port-Gentil",
+    "latitude": -0.735909,
+    "longitude": 8.760597,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_036",
+    "city": "Port-Gentil",
+    "latitude": -0.745312,
+    "longitude": 8.821362,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_037",
+    "city": "Port-Gentil",
+    "latitude": -0.685427,
+    "longitude": 8.764821,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_038",
+    "city": "Port-Gentil",
+    "latitude": -0.705311,
+    "longitude": 8.772107,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_039",
+    "city": "Port-Gentil",
+    "latitude": -0.681991,
+    "longitude": 8.777797,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_040",
+    "city": "Port-Gentil",
+    "latitude": -0.740461,
+    "longitude": 8.758696,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_041",
+    "city": "Franceville",
+    "latitude": -1.631091,
+    "longitude": 13.57411,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_042",
+    "city": "Franceville",
+    "latitude": -1.630255,
+    "longitude": 13.599513,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_043",
+    "city": "Franceville",
+    "latitude": -1.636922,
+    "longitude": 13.572373,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_044",
+    "city": "Oyem",
+    "latitude": 1.613431,
+    "longitude": 11.579567,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_045",
+    "city": "Oyem",
+    "latitude": 1.588045,
+    "longitude": 11.566619,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_046",
+    "city": "Lambaréné",
+    "latitude": -0.711811,
+    "longitude": 10.245188,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_047",
+    "city": "Lambaréné",
+    "latitude": -0.691338,
+    "longitude": 10.237798,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_048",
+    "city": "Mouila",
+    "latitude": -1.878975,
+    "longitude": 11.052349,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_049",
+    "city": "Mouila",
+    "latitude": -1.856593,
+    "longitude": 11.056773,
+    "isAvailable": true
+  },
+  {
+    "driverId": "driver_050",
+    "city": "Tchibanga",
+    "latitude": -2.840578,
+    "longitude": 11.023916,
+    "isAvailable": true
+  }
+]

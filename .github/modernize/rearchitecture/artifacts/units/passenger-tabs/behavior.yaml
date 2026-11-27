@@ -1,0 +1,18 @@
+unit: passenger-tabs
+side_effects:
+  - source_loc: "lib/userScreens/PagesManager.dart:20"
+    effect: "Maintains the selected tab index and displays MapPage, HistoryPage or ProfilePage."
+    must_preserve: true
+branches:
+  - source_loc: "lib/userScreens/PagesManager.dart:24"
+    condition: "Selected navigation index is 0, 1, or 2."
+    behavior: "Show map/booking, passenger ride history, or passenger profile without changing their UI ownership."
+    must_preserve: true
+error_paths: []
+concurrency:
+  model: sync
+  tx_boundary:
+    source_loc: "lib/userScreens/PagesManager.dart:16"
+    scope: "No client persistence transaction; selected tab is in-memory widget state."
+    isolation: "n/a"
+    must_preserve: false

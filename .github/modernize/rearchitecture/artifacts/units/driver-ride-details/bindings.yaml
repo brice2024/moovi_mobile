@@ -1,0 +1,15 @@
+unit: driver-ride-details
+bindings:
+  - type: convention
+    name: "RideDetailsPage accepts RideOffer and pushes ActiveRidePage on accepted state"
+    source_loc: "lib/driversScreens/test/ride_details_page.dart:13"
+    target: "RideDetailsPage"
+    must_appear_in_target: true
+    notes: "Use API ride/offer JSON model; Firebase snapshot listener is replaced with GET/current state plus ride:accepted/status event."
+  - type: convention
+    name: "NegotiatePriceSheet is opened as a modal"
+    source_loc: "lib/driversScreens/test/ride_details_page.dart:208"
+    target: "NegotiatePriceSheet"
+    must_appear_in_target: true
+    notes: "Keep input/validation UI; POST negotiated price as API offer."
+runtime_config: []

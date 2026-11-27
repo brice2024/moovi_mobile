@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- HTTP non chiffré autorisé uniquement vers l'API Moovi du réseau local
+     (et l'émulateur). Tout autre domaine reste en HTTPS obligatoire.
+     Passer l'API en HTTPS avant une diffusion publique. -->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">192.168.1.114</domain>
+        <domain includeSubdomains="false">10.0.2.2</domain>
+    </domain-config>
+</network-security-config>

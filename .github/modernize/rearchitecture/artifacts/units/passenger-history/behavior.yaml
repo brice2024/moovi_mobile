@@ -1,0 +1,23 @@
+unit: passenger-history
+side_effects:
+  - source_loc: "lib/userScreens/history/history.dart:41"
+    effect: "Loads the current user's rides in descending creation time and renders ride price, route, status and payment state."
+    must_preserve: true
+branches:
+  - source_loc: "lib/userScreens/history/history.dart:19"
+    condition: "No authenticated user, request loading, no rides, or ride records exist."
+    behavior: "Show login prompt, loading indicator, empty-history copy, or list respectively."
+    must_preserve: true
+error_paths:
+  - source_loc: "lib/userScreens/history/history.dart:41"
+    trigger: "History request fails or session becomes unauthorized."
+    outcome: "Show a distinct API/session error; do not silently render an empty successful result."
+    contract: "GET `/api/users/me/rides` is JWT-protected and paginated."
+    must_preserve: true
+concurrency:
+  model: coroutine
+  tx_boundary:
+    source_loc: "../api/app/views/users.py:241"
+    scope: "Read-only server query; no client or API transaction side effect."
+    isolation: "n/a"
+    must_preserve: false

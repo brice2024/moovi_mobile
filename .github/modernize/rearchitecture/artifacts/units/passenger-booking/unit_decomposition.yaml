@@ -1,0 +1,15 @@
+unit: passenger-booking
+commit: false
+candidate_splits:
+  - id: "lib/userScreens/mapPage.dart:89-319"
+    drivers: [concern_split, execution_model_split]
+    rationale: "The large map page combines route geometry, search/location state, ride creation and real-time offer acceptance; these concerns use different asynchronous API/socket interactions."
+    source_slice: {file: "lib/userScreens/mapPage.dart", lines: [89, 319]}
+  - id: "lib/userScreens/mapPage.dart:321-488"
+    drivers: [concern_split, reuse_split]
+    rationale: "Current-ride and driver-map subscriptions/marker reconstruction are a separate real-time view concern from address search and route selection."
+    source_slice: {file: "lib/userScreens/mapPage.dart", lines: [321, 488]}
+  - id: "lib/userScreens/dataService.dart:5-56"
+    drivers: [data_ownership_split]
+    rationale: "Bundled demo-fixture import and Firestore `test_drivers` query are development/test data behavior, not passenger production map persistence."
+    source_slice: {file: "lib/userScreens/dataService.dart", lines: [5, 56]}

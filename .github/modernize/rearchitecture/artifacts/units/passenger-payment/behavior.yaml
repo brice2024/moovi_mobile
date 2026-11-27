@@ -1,0 +1,31 @@
+unit: passenger-payment
+side_effects:
+  - source_loc: "lib/widgets/paycentral_payment_sheet.dart:147"
+    effect: "Source-defined sheet initiates PayCentral payment, polls status, and invokes client Firestore payment mutation on success."
+    must_preserve: true
+branches:
+  - source_loc: "lib/widgets/paycentral_payment_sheet.dart:117"
+    condition: "Cash payment is selected."
+    behavior: "If this disconnected sheet is intentionally wired, preserve its cash-payment choice and use the API's authoritative settlement operation; do not report success before the API confirms it."
+    must_preserve: true
+  - source_loc: "lib/widgets/paycentral_payment_sheet.dart:147"
+    condition: "Airtel/Moov PayCentral payment is selected and initiated."
+    behavior: "If intentionally wired, preserve phone validation and pending/success/failure feedback while replacing direct provider initiation with API initiation/status; only close as success after API-confirmed settlement."
+    must_preserve: true
+  - source_loc: "lib/widgets/paycentral_payment_sheet.dart:15"
+    condition: "No invocation of `showPayCentralPaymentSheet` exists in the scanned Dart library."
+    behavior: "Treat as disconnected source code; implementation/design must explicitly decide whether to wire it to a ride flow, retain disconnected, or remove it. Do not claim current user reachability."
+    must_preserve: true
+error_paths:
+  - source_loc: "lib/widgets/paycentral_payment_sheet.dart:147"
+    trigger: "Payment initiation/status/provider fails or user rejects payment."
+    outcome: "Show API/provider failure and do not mark ride paid."
+    contract: "API PayCentral initiation/status owns settlement; direct provider response is not authoritative to mobile."
+    must_preserve: true
+concurrency:
+  model: coroutine
+  tx_boundary:
+    source_loc: "../api/app/views/payments.py:229"
+    scope: "API owns payment transaction, ride paid fields, commission, wallet and notification transaction."
+    isolation: "row-locked API database settlement"
+    must_preserve: true

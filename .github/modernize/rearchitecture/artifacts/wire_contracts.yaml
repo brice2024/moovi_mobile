@@ -1,0 +1,343 @@
+contracts:
+  - name: "API envelope and authorization"
+    unit: global
+    type: rest
+    stability: must_preserve
+    source_loc: "../api/app/tools/responses.py:1"
+    contract:
+      method: "all REST methods"
+      path: "/api/*"
+      request: "JSON or multipart as specified by route; protected calls send Authorization: Bearer <accessToken>"
+      response: "Shared success envelope `{success, message, data}` or failure envelope `{success:false, message, error:{code, details?}}`; source of exact fields: responses.py"
+      error: "Route-specific 4xx/5xx status and stable `error.code`; preserve provider/network/validation distinctions"
+      auth: "Flask-JWT-Extended; routes annotated by auth_required/driver_required/admin_required; refresh endpoint requires refresh JWT"
+    target_contract:
+      method: "Dart API client uses the exact HTTP method/path, JSON/multipart payload, response envelope and Authorization header documented for each route below."
+      notes: "Do not send provider API keys from Flutter. Do not mask non-2xx as success; API returns source-owned error codes."
+    semantic_divergence:
+      - field: "latitude/longitude"
+        issue: "Firestore GeoPoint becomes ordinary nested JSON coordinate objects or explicit latitude/longitude request fields; no GeoPoint or DocumentSnapshot exists on the target wire."
+        source_loc: "lib/functions.dart:37"
+      - field: "timestamps"
+        issue: "Firestore server timestamp/Timestamp values become API ISO-8601 strings; parse as date/time values without assuming a Firestore Timestamp object."
+        source_loc: "lib/functions.dart:52"
+      - field: "ride/offer JSON"
+        issue: "API returns server-computed identifiers, status, driver snapshot, price and payment fields; do not retain client-side fabricated model defaults or Firestore-only field names."
+        source_loc: "../api/app/models/ride.py:104"
+
+  - name: "OTP, auth, refresh and logout"
+    unit: auth-session
+    type: rest
+    stability: must_preserve
+    source_loc: "../api/app/views/auth.py:100"
+    contract:
+      method: "POST, GET"
+      path: |
+        POST /api/auth/otp/send
+        POST /api/auth/otp/resend
+        POST /api/auth/otp/verify
+        POST /api/auth/register
+        POST /api/auth/login
+        POST /api/auth/password/forgot
+        POST /api/auth/password/reset
+        POST /api/auth/refresh
+        POST /api/auth/logout
+        GET /api/auth/me
+      request: "OTP send/resend `{phoneNumber}`; verify `{phoneNumber, code, firstName?, lastName?, referralCode?}`; email register/login JSON; refresh requires refresh JWT; logout/me require access JWT."
+      response: "OTP send returns expiry/cooldown and delivery info (debug code only when server config permits); verify/register/login return accessToken, refreshToken where issued and user JSON; refresh returns accessToken; /me returns user JSON."
+      error: "422 INVALID_PHONE/INVALID_OTP_FORMAT; 429 OTP_COOLDOWN/OTP_MAX_ATTEMPTS; 401 INVALID_OTP/INVALID_CREDENTIALS; 400 OTP_EXPIRED; 502 OTP_DELIVERY_FAILED; forgot/reset return 503 PASSWORD_RESET_UNAVAILABLE; protected requests can return 401/403."
+      auth: "OTP send/resend/verify, register/login, forgot/reset are public; refresh requires refresh token; logout and /me use access JWT."
+    target_contract:
+      method: "POST /api/auth/otp/send then POST /api/auth/otp/verify; securely persist issued accessToken+refreshToken, POST /api/auth/refresh on access expiry, POST /api/auth/logout before deleting local tokens, GET /api/auth/me during restoration."
+      notes: "WAHA stays server-side. `OTP_DELIVERY_FAILED` is terminal for that send attempt. Do not log or display server debugOtp outside an explicitly controlled development mode."
+    semantic_divergence: []
+
+  - name: "Passenger profile, avatar, rides, referral and device token"
+    unit: passenger-profile
+    type: rest
+    stability: must_preserve
+    source_loc: "../api/app/views/users.py:30"
+    contract:
+      method: "GET, PUT, PATCH, POST, DELETE"
+      path: |
+        GET /api/users/me
+        PUT|PATCH /api/users/me
+        POST /api/users/me/avatar
+        DELETE /api/users/me/avatar
+        DELETE /api/users/me
+        GET /api/users/me/rides
+        GET /api/users/me/referral
+        GET /api/users/me/recent-destinations
+        POST /api/users/me/device-token
+      request: "Profile JSON fields firstName,lastName,phone/phoneNumber,email,language,notificationsEnabled; avatar multipart `avatar` or `file`; list queries page/perPage/status or limit; device token `{token, platform}`."
+      response: "User/profile camelCase JSON; avatar path/url; paginated rides; referral code/credit/referrals; distinct recent destinations; success message for device-token registration."
+      error: "422 invalid/missing fields/files; 409 duplicate profile values or active ride on deletion; 401/403 authorization/account errors; 404 file/avatar not found as applicable."
+      auth: "JWT required for all user routes."
+    target_contract:
+      method: "Profile/history/avatar and account operations use these authenticated `/api/users/*` routes; avatar replacement/deletion is API-managed."
+      notes: "API serializes user id/uid, phoneNumber, firstName, lastName, photoUrl/photoPath, role/isDriver and timestamps; do not use Firestore `users/{uid}`."
+    semantic_divergence: []
+
+  - name: "Driver registration, documents, vehicles, presence and nearby lookup"
+    unit: driver-onboarding
+    type: rest
+    stability: must_preserve
+    source_loc: "../api/app/views/drivers.py:71"
+    contract:
+      method: "GET, POST, PUT"
+      path: |
+        POST /api/drivers/register
+        GET /api/drivers/me
+        GET /api/drivers/me/rides
+        GET /api/drivers/me/vehicles
+        POST /api/drivers/me/vehicles
+        PUT /api/drivers/me/vehicles/<vehicle_id>/activate
+        GET /api/drivers/me/documents
+        POST /api/drivers/me/documents/<doc_type>
+        PUT /api/drivers/me/availability
+        PUT /api/drivers/me/location
+        GET /api/drivers/nearby
+      request: "Register JSON/multipart vehicleType,brand,model,color,plate and optional document fields; document upload multipart `file`; vehicle CRUD JSON; availability `{isAvailable,latitude?,longitude?,heading?}`; location `{latitude,longitude,heading?}`; nearby query lat,lng,radiusKm,vehicleType,includeTest."
+      response: "Driver profile and nested vehicle/document summary; paginated driver rides/statistics; wallet/availability; nearby driver JSON with distance/ETA."
+      error: "422 invalid vehicle/doc/coordinates; 402 WALLET_BLOCKED; 403 verification/role; 409 active ride/duplicate vehicle; 401/404 auth/resource errors."
+      auth: "All routes require JWT; `driver_required`/`driver_profile_required` enforce driver registration; nearby requires authenticated user."
+    target_contract:
+      method: "Driver registration/file operations use the existing `/api/drivers` routes; query `/api/drivers/me/documents` or `/me` for server verification state; update presence via authenticated REST or supported socket events."
+      notes: "Keep API's `documentsSummary.items` and required-doc list as source of truth; do not reconstruct Firestore `drivers/{uid}.documents`."
+    semantic_divergence: []
+
+  - name: "Ride estimate, request, offer lifecycle, active ride and rating"
+    unit: passenger-booking
+    type: rest
+    stability: must_preserve
+    source_loc: "../api/app/views/rides.py:48"
+    contract:
+      method: "GET, POST"
+      path: |
+        POST /api/rides/estimate
+        POST /api/rides
+        GET /api/rides/active
+        GET /api/rides/available
+        GET /api/rides/<ride_id>
+        GET /api/rides/<ride_id>/offers
+        POST /api/rides/<ride_id>/offers
+        POST /api/rides/<ride_id>/offers/<offer_or_driver_id>/accept
+        POST /api/rides/<ride_id>/arrived
+        POST /api/rides/<ride_id>/start
+        POST /api/rides/<ride_id>/complete
+        POST /api/rides/<ride_id>/cancel
+        POST /api/rides/<ride_id>/rate
+      request: "Estimate JSON distanceKm/distanceMeters or endpoint coordinates; create ride JSON departure/destination lat/lng/address, rideType, price, route/distance/duration/polyline and optional promoCode; offer JSON price/arrivalMinutes/message; cancel `{reason?}`; rating `{score,comment?}`; active/available filters in query."
+      response: "Server `Ride.to_dict` with id, participants, route, price/agreed/final price, status, payment/discount/time fields; offers array; success/failure envelope."
+      error: "422 required/invalid fields; 401/403 auth/participant; 404 missing ride/offer; 409 active ride/state/duplicate acceptance/cancellation; 402 blocked wallet; 502 provider errors only on provider-backed endpoints."
+      auth: "JWT required; driver-specific operations use driver_required; operations enforce participant/role ownership."
+    target_contract:
+      method: "Use API routes for fare estimate, ride create/read/list, offers, state changes, cancellation and ratings. GET responses are authoritative; Socket.IO events below supply realtime updates."
+      notes: "Core route source is `../api/app/views/rides.py`; event-based updates must not mutate a second client database."
+    semantic_divergence:
+      - field: "RideOffer.fromFirestore"
+        issue: "The current model supplies fixed ETA/distance defaults and demo ride data; use real API payload and display an honest empty state rather than treating those values as live."
+        source_loc: "lib/driversScreens/test/ride_offer.dart:32"
+
+  - name: "Wallet and PawaPay deposit"
+    unit: driver-wallet
+    type: rest
+    stability: must_preserve
+    source_loc: "../api/app/views/wallet.py:21"
+    contract:
+      method: "GET, POST"
+      path: |
+        GET /api/wallet/countries
+        GET /api/wallet
+        POST /api/wallet/recharge
+        GET /api/wallet/recharge/<deposit_id>/status
+      request: "Recharge JSON `{country, operatorCode, phoneNumber, amount}`; status id is API depositId; list uses page/perPage."
+      response: "Country/operator catalog; wallet balance/block/availability/last recharge, transaction page; recharge depositId/gatewayStatus/simulated/transaction; status and server-settled balance."
+      error: "422 amount/country/operator/phone validation; 404 transaction; 502 PAWAPAY_ERROR; 401/403 driver authorization."
+      auth: "Driver JWT required."
+    target_contract:
+      method: "POST /api/wallet/recharge then poll GET /api/wallet/recharge/{depositId}/status or consume wallet:updated; server confirms completion and credits once."
+      notes: "Do not call PawaPay from Flutter and do not write wallet balance/client transaction rows."
+    semantic_divergence: []
+
+  - name: "Ride payment and payment webhooks"
+    unit: passenger-payment
+    type: rest
+    stability: must_preserve
+    source_loc: "../api/app/views/payments.py:194"
+    contract:
+      method: "GET, POST"
+      path: |
+        POST /api/rides/<ride_id>/pay/cash
+        POST /api/rides/<ride_id>/pay/paycentral
+        GET /api/payments/paycentral/<transaction_id>/status
+        POST /api/webhooks/pawapay
+        POST /api/webhooks/paycentral
+      request: "PayCentral initiation `{phoneNumber?,provider?}`; status path transaction_id; payment webhooks are provider-to-server JSON with depositId/status or transactionId/status and optional signature headers."
+      response: "Payment initiation/transaction status; settlement returns ride, wallet, amountDue/grossAmount/discount/reward data; webhook acknowledgement."
+      error: "401/403 auth/ownership/signature; 404 transaction/ride; 409 ride not payable/not completed/already paid; 422 phone; 502 provider errors; 503 webhook/provider not configured."
+      auth: "Ride cash confirmation requires driver JWT; PayCentral initiation/status require participant JWT; webhooks are server-to-server and verify configured signatures/provider state."
+    target_contract:
+      method: "Use authenticated `/api/rides/{rideId}/pay/paycentral` and status route; use driver cash confirmation route only when its ownership/ride-state preconditions apply."
+      notes: "Backend settlement owns payment status, commission, wallet mutation, notifications and idempotent lock; direct Flutter provider request and Firestore `markRideAsPaid` must not survive."
+    semantic_divergence: []
+
+  - name: "Places and route computation proxy"
+    unit: passenger-booking
+    type: rest
+    stability: must_preserve
+    source_loc: "../api/app/views/maps.py:12"
+    contract:
+      method: "GET, POST"
+      path: |
+        GET /api/maps/places/autocomplete
+        GET /api/maps/places/details
+        POST /api/maps/routes/compute
+      request: "Autocomplete input/q, country, language, lat/lng and sessionToken; details placeId/sessionToken; compute route JSON originLat/originLng/destinationLat/destinationLng/travelMode."
+      response: "API-wrapped Places predictions/details and route info including priceEstimates."
+      error: "422 missing query/coordinates; 401 JWT required; 502 PLACES_ERROR or ROUTES_ERROR."
+      auth: "JWT required."
+    target_contract:
+      method: "Use API Places and Routes proxy; API config owns Google Maps provider key. Keep Google Maps Flutter only for map rendering."
+      notes: "Current mobile Places and Routes calls attach the provider key directly. API route output is not assumed to be byte-identical to legacy Google JSON."
+    semantic_divergence: []
+
+  - name: "Ride chat"
+    unit: global
+    type: rest
+    stability: must_preserve
+    source_loc: "../api/app/views/chat.py:22"
+    contract:
+      method: "GET, POST"
+      path: |
+        GET /api/rides/<ride_id>/messages
+        POST /api/rides/<ride_id>/messages
+      request: "POST `{content}` (or legacy `message`); GET has ride_id path."
+      response: "Ordered message records with sender id/role/name/content/read flag/time; send returns created message."
+      error: "403 nonparticipant; 404 missing ride; 409 closed ride; 422 empty message."
+      auth: "JWT required; passenger or assigned driver only."
+    target_contract:
+      method: "Use authenticated chat REST history/send plus `ride:send_message` Socket.IO when realtime send is desired."
+      notes: "No chat UI or Firebase chat use was found in the scanned Flutter library; this records existing API capability, not a claim that the mobile feature is wired."
+    semantic_divergence: []
+
+  - name: "Notification APIs"
+    unit: global
+    type: rest
+    stability: must_preserve
+    source_loc: "../api/app/views/notifications.py:16"
+    contract:
+      method: "GET, POST"
+      path: |
+        GET /api/notifications
+        POST /api/notifications/<notification_id>/read
+        POST /api/notifications/read-all
+      request: "List page/perPage/unreadOnly query; read uses notification_id path."
+      response: "Notifications, unreadCount, pagination; updated notification or success."
+      error: "401 unauthorized; 404 notification."
+      auth: "JWT required."
+    target_contract:
+      method: "Use authenticated notification routes and Socket.IO `notification:new` if a mobile notification surface is introduced."
+      notes: "The current Flutter notification callbacks are unbound/default-null and no push-messaging dependency/token registration code was found."
+    semantic_divergence: []
+
+  - name: "Admin-only API and demo seed"
+    unit: global
+    type: rest
+    stability: must_preserve
+    source_loc: "../api/app/views/admin.py:23"
+    contract:
+      method: "GET, POST, PATCH"
+      path: |
+        GET /api/admin/promo-codes
+        POST /api/admin/promo-codes
+        PATCH /api/admin/promo-codes/<promo_id>
+        GET /api/admin/drivers
+        GET /api/admin/drivers/<driver_id>
+        POST /api/admin/drivers/<driver_id>/documents/<doc_type>/review
+        POST /api/admin/drivers/<driver_id>/verify
+        POST /api/admin/drivers/<driver_id>/vehicles/<vehicle_id>/review
+        GET /api/admin/stats
+        POST /api/admin/seed-test-drivers
+      request: "Role-specific JSON payloads for promo, review, verification and seed operations; pagination/status query for driver list."
+      response: "Admin promo/driver/document/vehicle review records, stats or seed summary."
+      error: "401/403 unauthorized/non-admin; route-specific 404 and 422 validation."
+      auth: "Admin JWT required."
+    target_contract:
+      method: "Admin operations stay server-side; any mobile admin workflow must use these protected routes and never embed admin credentials."
+      notes: "The mobile bundled-fixture importer is not equivalent to the generated admin test seed; the API does not expose a matching end-user fixture import."
+    semantic_divergence: []
+
+  - name: "File serving"
+    unit: profile-edit
+    type: file
+    stability: must_preserve
+    source_loc: "../api/app/views/files.py:30"
+    contract:
+      method: "GET"
+      path: |
+        GET /api/files/drivers/<driver_id>/<path:subpath>
+        GET /api/files/<path:subpath>
+      request: "Avatar and driver document upload routes are `/api/users/me/avatar` and `/api/drivers/me/documents/<doc_type>`; file URLs use the API host."
+      response: "Stored file bytes, with path traversal and driver-root checks; file absence is 404."
+      error: "403 driver file access denied; 404 FILE_NOT_FOUND; upload size/type errors returned by owning upload route."
+      auth: "Driver file route requires JWT and driver ownership/admin; non-driver file route is public in current code."
+    target_contract:
+      method: "Flutter uploads through authenticated multipart API routes and renders API `photoUrl`/document `url` or returned API file path; never uses Firebase Storage."
+      notes: "Do not assume public URLs are host-independent: configure the API host and resolve relative API file paths against it when needed."
+    semantic_divergence: []
+
+  - name: "Health probes"
+    unit: global
+    type: rest
+    stability: must_preserve
+    source_loc: "../api/app/views/health.py:11"
+    contract:
+      method: "GET"
+      path: |
+        GET /
+        GET /api/health
+      request: "No body."
+      response: "Welcome/service metadata and DB health JSON."
+      error: "GET /api/health returns 503 DATABASE_UNAVAILABLE when database probe fails."
+      auth: "Health probes are public; individual API operations retain their route-specific auth."
+    target_contract:
+      method: "GET /api/health is the existing server health probe."
+      notes: "Health probe confirms server/database only; it does not prove WAHA or mobile device reachability."
+    semantic_divergence: []
+
+  - name: "Swagger and OpenAPI documentation"
+    unit: global
+    type: rest
+    stability: must_preserve
+    source_loc: "../api/app/openapi.py:346"
+    contract:
+      method: "GET"
+      path: |
+        GET /api/docs/
+        GET /api/openapi.json
+      request: "No body."
+      response: "Swagger UI and generated OpenAPI JSON."
+      error: "Documentation endpoints are public; individual API operations retain their route-specific auth."
+      auth: "Public."
+    target_contract:
+      method: "Keep existing public API documentation endpoints available; they are not mobile business flows."
+      notes: "OpenAPI is generated from registered API routes."
+    semantic_divergence: []
+
+  - name: "Socket.IO authentication, ride and driver realtime"
+    unit: passenger-booking
+    type: sdk
+    stability: must_preserve
+    source_loc: "../api/app/views/realtime.py:20"
+    contract:
+      method: "Socket.IO connect + named events"
+      path: "Default Socket.IO namespace; JWT supplied as `auth: {token}` (or query/Bearer header)."
+      request: "Client events: join_ride `{rideId}`, leave_ride `{rideId}`, driver:go_online `{latitude?,longitude?,heading?}`, driver:go_offline, driver:location_update `{latitude,longitude,heading?,rideId?}`, driver:heartbeat or ping, ride:send_message `{rideId,content}`."
+      response: "connected (activeRideIds/rooms), driver:availability_changed, driver:location_updated, driver:offline, ride:new, ride:offer_received, ride:accepted, ride:taken, ride:expired, ride:status_changed, ride:driver_location, ride:message, ride:paid, ride:cancelled, wallet:updated, driver:verification_updated, notification:new; `error` for rejected event operations."
+      error: "Invalid/revoked/inactive JWT rejects connect; event errors carry code/message. Room access is participant/driver scoped."
+      auth: "Socket JWT is decoded and blocklist-checked; connected user is joined to user/passenger map and permitted active ride rooms."
+    target_contract:
+      method: "Flutter Socket.IO client connects with access token in auth payload; subscribe to server-emitted event names and emit only supported client events."
+      notes: "Use REST for current-state reads and durable writes; Socket.IO for supported realtime. API events are not automatically equivalent to every Firestore query stream."
+    semantic_divergence: []

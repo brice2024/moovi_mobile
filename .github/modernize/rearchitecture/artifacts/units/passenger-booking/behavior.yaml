@@ -1,0 +1,53 @@
+unit: passenger-booking
+side_effects:
+  - source_loc: "lib/userScreens/mapPage.dart:190"
+    effect: "Obtains device location and uses the selected/current origin for the route and nearby ride search."
+    must_preserve: true
+  - source_loc: "lib/userScreens/mapPage.dart:565"
+    effect: "Draws the selected route and requests or updates a ride through ride-sheet actions; offers and acceptance are represented by ride state."
+    must_preserve: true
+  - source_loc: "lib/userScreens/mapPage.dart:799"
+    effect: "A placeholder offer sheet currently displays bundled demoOffers and its selection callback only prints values; this is not a successful live search or acceptance."
+    must_preserve: false
+  - source_loc: "../api/app/views/rides.py:84"
+    effect: "Creates a durable ride, reserves an eligible benefit, and emits ride:new to matching online drivers."
+    must_preserve: true
+branches:
+  - source_loc: "lib/userScreens/mapPage.dart:252"
+    condition: "Origin/destination search has fewer than three characters, suggestions are absent, or place details fail."
+    behavior: "Retain typed location and selection state; show matching suggestions/loading/error rather than claiming a location was resolved."
+    must_preserve: true
+  - source_loc: "lib/userScreens/mapPage.dart:565"
+    condition: "Origin and destination are selected and a route can be computed."
+    behavior: "Display route polyline, distance/duration and price options; API errors must remain visible and must not create a ride."
+    must_preserve: true
+  - source_loc: "lib/userScreens/mapPage.dart:930"
+    condition: "Current Firestore ride-offer stream has no entries or reports an error."
+    behavior: "Replace the Firestore stream with API offers/realtime; show an honest no-offers/error state and do not show `demoOffers` or cached test drivers as live offers."
+    must_preserve: true
+  - source_loc: "lib/userScreens/mapPage.dart:799"
+    condition: "The offer display is opened before a live ride/offer result is available."
+    behavior: "Do not treat the placeholder `demoOffers` sheet or print-only selection callback as a real result; display API-backed offer/loading/empty states and submit acceptance through the API."
+    must_preserve: true
+  - source_loc: "../api/app/views/rides.py:96"
+    condition: "Passenger already has an active ride or required ride fields/type/price are invalid."
+    behavior: "Keep booking incomplete and surface API conflict/validation result."
+    must_preserve: true
+error_paths:
+  - source_loc: "lib/userScreens/mapPage.dart:558"
+    trigger: "Route/search/create API/network failure."
+    outcome: "Show retryable truthful error and do not treat search/ride creation as successful."
+    contract: "API returns route-specific envelope/status; active ride conflict is 409; map proxy/provider errors are 502."
+    must_preserve: true
+  - source_loc: "lib/userScreens/mapPage.dart:449"
+    trigger: "Legacy Firestore driver stream is unavailable or has no entries."
+    outcome: "Target queries API nearby drivers and listens to supported driver events; no Firebase/demo fixture fallback."
+    contract: "GET `/api/drivers/nearby` requires JWT; Socket.IO events include driver:availability_changed and driver:location_updated."
+    must_preserve: true
+concurrency:
+  model: coroutine
+  tx_boundary:
+    source_loc: "../api/app/views/rides.py:84"
+    scope: "Ride, benefit reservation and initial state are committed by API; Flutter does not coordinate Firestore writes."
+    isolation: "API database transaction"
+    must_preserve: true

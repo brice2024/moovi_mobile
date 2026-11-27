@@ -1,0 +1,46 @@
+project:
+  scope_path: "C:/Users/Brice/Downloads/moovi_mobile-master/moovi_mobile-master"
+  loc: 19143
+  languages: [Dart, Python]
+  git: false
+  structure:
+    lib: "Flutter mobile application source"
+    android: "Android platform project and runtime configuration"
+    ios: "iOS platform project and runtime configuration"
+    assets: "Mobile app assets"
+    api: "Sibling Flask API at C:/Users/Brice/Downloads/moovi_mobile-master/api; included in migration scope"
+  notes: "Combined recon measured 12,024 nonblank Dart lines in the Flutter app and 7,119 nonblank Python lines in the sibling Flask API; generated/build/cache directories excluded. Existing API is the migration target."
+
+assessment:
+  change_type: rewrite
+  rationale: |
+    Replace Firebase-backed authentication, data, file, realtime, and provider access paths across the existing Flutter app with the existing Flask API, adding API behavior only where evidence shows it is missing. This is a cross-system architecture/data-provider migration rather than a version-only dependency upgrade. The app UI remains in place and its observable behavior is to be preserved.
+  transformations:
+    - fromStack: "Flutter app using Firebase services"
+      toStack: "Flutter app using the existing Flask API"
+    - fromStack: "Firebase Auth, Firestore, Storage, and runtime initialization"
+      toStack: "Flask API JWT, HTTP endpoints, Socket.IO/realtime where supported, and API-managed file operations"
+    - fromStack: "Direct payment and map provider calls"
+      toStack: "Flask API-mediated payment and map operations where API capabilities support them"
+  grouping_needed: false
+  deep_planning: undecided
+
+progress_sync:
+  run_id: "2df3c642-f1c5-4534-8a71-5f6b56341d76"
+  grouping_mode: none
+  execution_mode: null
+  plan_start_time: "2026-11-25T15:29:07Z"
+  plan_completed_time: null
+  execution_start_time: null
+  execution_completed_time: null
+  validation_start_time: null
+  validation_completed_time: null
+  total_phases: 5
+  completed_phases: 1
+  total_modules: 2
+  completed_modules: 0
+  total_tasks: 10
+  completed_tasks: 4
+  total_commits: 0
+  build_verified: false
+  test_verified: false

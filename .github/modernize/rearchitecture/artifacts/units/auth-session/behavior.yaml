@@ -1,0 +1,43 @@
+unit: auth-session
+side_effects:
+  - source_loc: "lib/services/Auth.dart:85"
+    effect: "Submits OTP send and waits for code-sent/automatic verification result before opening OTP entry."
+    must_preserve: true
+  - source_loc: "../api/app/views/auth.py:139"
+    effect: "API verifies the one-time code, creates or loads the user, and returns JWT tokens plus user/driver identity."
+    must_preserve: true
+  - source_loc: "lib/services/Auth.dart:165"
+    effect: "Signs the user out; target logout must revoke the API access JWT when available and clear persistent credentials."
+    must_preserve: true
+branches:
+  - source_loc: "lib/auth_wrapper.dart:12"
+    condition: "Firebase auth stream is waiting, has a user, or has no user."
+    behavior: "Show loading, authenticated passenger tabs, or phone sign-in respectively; target restores secure API session and routes session-invalid/expired users to sign-in."
+    must_preserve: true
+  - source_loc: "lib/authScreens/otpVerification.dart:24"
+    condition: "OTP code has fewer than six digits, resend timer is nonzero, or code verification fails."
+    behavior: "Block incomplete submit; enforce resend cooldown; keep form active and visibly show incorrect/expired-code error."
+    must_preserve: true
+error_paths:
+  - source_loc: "lib/authScreens/SignOrLogin.dart:121"
+    trigger: "Phone input invalid or OTP request throws."
+    outcome: "Do not navigate to verification on invalid input; display send failure and allow retry."
+    contract: "API INVALID_PHONE/OTP_COOLDOWN/OTP_DELIVERY_FAILED must remain failures; WAHA delivery failure is HTTP 502, not success."
+    must_preserve: true
+  - source_loc: "../api/app/views/auth.py:130"
+    trigger: "OTP malformed, expired, wrong, over attempt limit, or account disabled."
+    outcome: "Retain form/error state; do not create an authenticated session."
+    contract: "422 INVALID_OTP_FORMAT; 400 OTP_EXPIRED; 401 INVALID_OTP; 429 OTP_MAX_ATTEMPTS; 403 ACCOUNT_DISABLED."
+    must_preserve: true
+  - source_loc: "../api/app/views/auth.py:328"
+    trigger: "Refresh token missing/invalid or API rejects access token."
+    outcome: "Clear session after failed refresh and return to signed-out root; do not show protected stale content."
+    contract: "Refresh requires refresh JWT; protected endpoints return unauthorized."
+    must_preserve: true
+concurrency:
+  model: coroutine
+  tx_boundary:
+    source_loc: "../api/app/views/auth.py:139"
+    scope: "OTP/user/referral writes are server-side database operations; Flutter does not own an atomic transaction."
+    isolation: "API database transaction"
+    must_preserve: true

@@ -1,0 +1,15 @@
+unit: passenger-profile
+bindings:
+  - type: convention
+    name: "ProfilePage tab and profile/edit/driver-mode Navigator routes"
+    source_loc: "lib/userScreens/profil/profile_page.dart:109"
+    target: "ProfilePage"
+    must_appear_in_target: true
+    notes: "Keep current profile UI/route behavior while retrieving user and driver state from the API."
+  - type: convention
+    name: "FirebaseAuth currentUser + Firestore profile snapshot"
+    source_loc: "lib/userScreens/profil/profile_page.dart:33"
+    target: "ProfilePage"
+    must_appear_in_target: true
+    notes: "Replace with authenticated API user/driver JSON; no Firebase state fallback."
+runtime_config: []

@@ -1,0 +1,7 @@
+unit: driver-active-ride
+commit: false
+candidate_splits:
+  - id: "lib/driversScreens/test/active_ride_page.dart:55-210"
+    drivers: [concern_split, execution_model_split]
+    rationale: "Ride lifecycle/status display and payment prompting/confirmation have separate API contracts and failure semantics while sharing active ride identity."
+    source_slice: {file: "lib/driversScreens/test/active_ride_page.dart", lines: [55, 210]}

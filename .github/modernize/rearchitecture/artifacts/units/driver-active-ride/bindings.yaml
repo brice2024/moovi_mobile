@@ -1,0 +1,15 @@
+unit: driver-active-ride
+bindings:
+  - type: convention
+    name: "ActiveRidePage receives accepted ride/offer and listens to Firestore ride/payment state"
+    source_loc: "lib/driversScreens/test/active_ride_page.dart:20"
+    target: "ActiveRidePage"
+    must_appear_in_target: true
+    notes: "Subscribe to Socket.IO ride status/location/payment events and load current ride via API."
+  - type: convention
+    name: "Ride step and cash payment actions"
+    source_loc: "lib/driversScreens/test/active_ride_page.dart:69"
+    target: "ActiveRidePage"
+    must_appear_in_target: true
+    notes: "Call API transitions and cash confirmation; do not call Firebase markRideAsPaid."
+runtime_config: []

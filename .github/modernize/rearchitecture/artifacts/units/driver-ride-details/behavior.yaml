@@ -1,0 +1,30 @@
+unit: driver-ride-details
+side_effects:
+  - source_loc: "lib/driversScreens/test/ride_details_page.dart:37"
+    effect: "Watches selected ride status and updates the detail UI as acceptance/availability changes."
+    must_preserve: true
+  - source_loc: "lib/driversScreens/test/ride_details_page.dart:65"
+    effect: "Submits a driver offer with selected price and navigates to active ride after acceptance."
+    must_preserve: true
+branches:
+  - source_loc: "lib/driversScreens/test/ride_details_page.dart:208"
+    condition: "Driver chooses to negotiate price."
+    behavior: "Show negotiation sheet, apply selected price, and preserve cancellation/back behavior."
+    must_preserve: true
+  - source_loc: "../api/app/views/rides.py:333"
+    condition: "Ride is no longer searching, driver is blocked, or offer price invalid."
+    behavior: "Do not submit or display a false pending offer; show specific API conflict/validation response."
+    must_preserve: true
+error_paths:
+  - source_loc: "lib/driversScreens/test/ride_details_page.dart:65"
+    trigger: "Ride detail/offer API fails or ride is taken."
+    outcome: "Stay on detail screen and show server error; allow refresh/back."
+    contract: "GET ride can return 404/403; POST offer returns 402 wallet or 409 not-searching and 422 invalid price."
+    must_preserve: true
+concurrency:
+  model: coroutine
+  tx_boundary:
+    source_loc: "../api/app/views/rides.py:333"
+    scope: "Offer persistence and notification are committed by API before realtime event."
+    isolation: "API database transaction"
+    must_preserve: true

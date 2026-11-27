@@ -1,0 +1,33 @@
+unit: driver-wallet
+side_effects:
+  - source_loc: "lib/driversScreens/wallet/driver_wallet_page.dart:28"
+    effect: "Displays driver wallet balance, blocked/available state and transaction ledger."
+    must_preserve: true
+  - source_loc: "lib/driversScreens/wallet/recharge_wallet_sheet.dart:104"
+    effect: "Initiates Mobile Money deposit and waits for pending/completed/failed status."
+    must_preserve: true
+  - source_loc: "../api/app/views/wallet.py:111"
+    effect: "Server records pending deposit and applies completed credit once; emits wallet update."
+    must_preserve: true
+branches:
+  - source_loc: "lib/driversScreens/wallet/recharge_wallet_sheet.dart:78"
+    condition: "Current source chooses provider sandbox phone defaults when not configured for production."
+    behavior: "Do not present sandbox defaults as a real user payment; API/test configuration determines simulation and result."
+    must_preserve: true
+  - source_loc: "lib/driversScreens/wallet/recharge_wallet_sheet.dart:153"
+    condition: "Deposit status is completed, failed or still pending."
+    behavior: "Only show success/close on server-confirmed completion; preserve pending/retry/failure messaging."
+    must_preserve: true
+error_paths:
+  - source_loc: "lib/driversScreens/wallet/recharge_wallet_sheet.dart:123"
+    trigger: "API/provider rejects recharge or status cannot be checked."
+    outcome: "Show failure/pending state and do not credit balance in client."
+    contract: "POST `/api/wallet/recharge`; GET status; 422 validation, 502 PAWAPAY_ERROR, 404 missing transaction."
+    must_preserve: true
+concurrency:
+  model: coroutine
+  tx_boundary:
+    source_loc: "../api/app/views/wallet.py:26"
+    scope: "Deposit completion and wallet credit are row-locked and idempotent on server."
+    isolation: "row-locked API database transaction"
+    must_preserve: true

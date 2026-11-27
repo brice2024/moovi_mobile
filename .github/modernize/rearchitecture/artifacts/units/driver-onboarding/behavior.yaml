@@ -1,0 +1,34 @@
+unit: driver-onboarding
+side_effects:
+  - source_loc: "lib/driversScreens/CarInfos.dart:165"
+    effect: "Submits car details and required images, stores driver verification state, then opens verification status."
+    must_preserve: true
+  - source_loc: "lib/driversScreens/MotoInfos.dart:164"
+    effect: "Submits motorcycle details and its required images, stores driver verification state, then opens verification status."
+    must_preserve: true
+branches:
+  - source_loc: "lib/driversScreens/ChooseVehiclePage.dart:28"
+    condition: "Vehicle type selected is motorcycle or car/confort."
+    behavior: "Open the corresponding vehicle form with its distinct required document set."
+    must_preserve: true
+  - source_loc: "lib/driversScreens/CarInfos.dart:79"
+    condition: "Required text fields or required document photos are missing."
+    behavior: "Prevent submission and show validation feedback."
+    must_preserve: true
+  - source_loc: "../api/app/views/drivers.py:71"
+    condition: "An active driver ride prevents vehicle update or API rejects vehicle/doc fields."
+    behavior: "Keep form and report server conflict/validation; do not claim registration succeeded."
+    must_preserve: true
+error_paths:
+  - source_loc: "lib/driversScreens/CarInfos.dart:184"
+    trigger: "Document upload or driver registration fails."
+    outcome: "Stop success navigation and show the upload/API error; keep retryable form state."
+    contract: "POST `/api/drivers/register` or POST `/api/drivers/me/documents/<doc_type>` returns 422 for invalid/missing files and 409 during an active ride."
+    must_preserve: true
+concurrency:
+  model: coroutine
+  tx_boundary:
+    source_loc: "../api/app/views/drivers.py:71"
+    scope: "Driver/vehicle metadata and registration documents are committed by API; avoid independent Firebase file/data writes."
+    isolation: "API database transaction"
+    must_preserve: true

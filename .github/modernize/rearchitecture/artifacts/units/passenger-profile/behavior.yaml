@@ -1,0 +1,35 @@
+unit: passenger-profile
+side_effects:
+  - source_loc: "lib/userScreens/profil/profile_page.dart:46"
+    effect: "Loads the current user's profile and displays identity/rating/ride counts and driver-mode actions."
+    must_preserve: true
+  - source_loc: "lib/userScreens/profil/profile_page.dart:269"
+    effect: "Confirms and performs logout."
+    must_preserve: true
+branches:
+  - source_loc: "lib/userScreens/profil/profile_page.dart:186"
+    condition: "Current account is already a driver or is not registered."
+    behavior: "Navigate existing driver to offers page; otherwise start vehicle selection."
+    must_preserve: true
+  - source_loc: "lib/userScreens/profil/profile_page.dart:226"
+    condition: "Notification setting callback is unset in current Pagesmanager."
+    behavior: "Notification tile currently has no wired action; do not claim a notification screen exists. API notifications are available for later explicit UI integration."
+    must_preserve: true
+error_paths:
+  - source_loc: "lib/userScreens/profil/profile_page.dart:46"
+    trigger: "Profile read or session authorization fails."
+    outcome: "Show an API/session failure rather than a blank profile or stale identity."
+    contract: "GET `/api/users/me` requires valid access JWT."
+    must_preserve: true
+  - source_loc: "lib/userScreens/profil/profile_page.dart:269"
+    trigger: "API logout request fails."
+    outcome: "Clear local credentials and enter signed-out state according to the agreed logout policy; surface revocation/network failure without leaving protected UI active."
+    contract: "POST `/api/auth/logout` is JWT-protected."
+    must_preserve: true
+concurrency:
+  model: coroutine
+  tx_boundary:
+    source_loc: "../api/app/views/users.py:33"
+    scope: "Profile read only; account/profile writes are API-owned."
+    isolation: "n/a"
+    must_preserve: false

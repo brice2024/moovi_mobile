@@ -1,0 +1,15 @@
+unit: driver-offers
+bindings:
+  - type: convention
+    name: "OffersPage consumes Firestore available-rides and wallet streams"
+    source_loc: "lib/driversScreens/test/offers_page.dart:120"
+    target: "OffersPage"
+    must_appear_in_target: true
+    notes: "Replace Firestore listeners with REST current-state reads and Socket.IO event subscriptions supported by the API."
+  - type: convention
+    name: "GoogleMap and Geolocator supply driver map/location"
+    source_loc: "lib/driversScreens/test/offers_page.dart:99"
+    target: "OffersPage"
+    must_appear_in_target: true
+    notes: "Retain presentation/device location; send availability/location through API/Socket.IO."
+runtime_config: []

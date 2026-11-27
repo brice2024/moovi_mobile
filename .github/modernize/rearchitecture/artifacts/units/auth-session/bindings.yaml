@@ -1,0 +1,27 @@
+unit: auth-session
+bindings:
+  - type: convention
+    name: "Flutter main() → MyApp → AuthWrapper"
+    source_loc: "lib/main.dart:9"
+    target: "MyApp/AuthWrapper"
+    must_appear_in_target: true
+    notes: "Replace Firebase.initializeApp with deterministic API/session bootstrap while retaining Flutter binding initialization and root gate."
+  - type: convention
+    name: "Firebase authStateChanges stream"
+    source_loc: "lib/auth_wrapper.dart:12"
+    target: "AuthWrapper"
+    must_appear_in_target: true
+    notes: "Equivalent API session restoration must read secure persistent JWT and validate/refresh against the Flask API; do not preserve Firebase auth stream."
+  - type: convention
+    name: "OTP code entry/resend UI"
+    source_loc: "lib/authScreens/otpVerification.dart:24"
+    target: "Otpverification"
+    must_appear_in_target: true
+    notes: "Retain six-digit UI and timer; send/resend/verify through `/api/auth/otp/*`."
+runtime_config:
+  - key: "Firebase platform options"
+    source_loc: "lib/firebase_options.dart:17"
+    source: code
+    default_value: "Platform-specific Firebase options"
+    must_appear_in_target: false
+    notes: "Obsolete after runtime Firebase references and plugin wiring are removed; do not delete before cutover verification."

@@ -1,0 +1,29 @@
+seams:
+  - id: "lib/services/Auth.dart:10"
+    description: "Declared mobile-provider boundary: migrate the Flutter integration side to the existing Flask API; preserve API contracts and allow only evidence-backed additive backend changes."
+    source: declared
+    cut_between:
+      migrated_side: "all Flutter runtime units"
+      frozen_side: "existing Flask REST/Socket.IO API contracts"
+    protocol_shift: {from: "Firebase SDK/direct provider REST and streams", to: "JWT-authenticated HTTP REST plus Socket.IO events"}
+    frozen_side_rule: "Existing Flask endpoint, authorization, payload, database and Socket.IO behavior MUST NOT be refactored in the mobile migration phase. Add a backend capability only after an existing screen operation is proven unsupported; additive changes must preserve current API contracts."
+    bridge_points:
+      - at: "Flutter service boundary, replacing FirebaseAuth/FirebaseFirestore/FirebaseStorage and direct provider service calls"
+        from_form: "Firebase User/session, Firestore DocumentSnapshot/GeoPoint/Stream, Storage upload, or provider-specific HTTP request"
+        to_form: "HTTP JSON/multipart against `/api/...` with `Authorization: Bearer <accessToken>`; Socket.IO `auth: {token}` for supported realtime"
+        mapping_rule: >
+          Convert API envelope `{success, message, data, error}` into typed app results; map
+          user `id`/`role` and nested driver data from `GET /api/auth/me` or `GET /api/users/me`;
+          map JSON `{latitude,longitude}` and API ride/offer JSON into Dart models rather than
+          Firestore GeoPoint/DocumentSnapshot. For writes use the API-owned resource endpoint
+          (ride, driver, profile, wallet, payment, or file) and never update Firestore/client
+          accounting. Use API event names/payloads only where `realtime.py` emits them.
+        edge_cases:
+          - "401/expired access JWT: attempt the API refresh contract at most as designed, then clear credentials and enter the signed-out state; do not keep stale protected data."
+          - "API validation/provider errors preserve HTTP status and `error.code`; show failure, not success or seeded/demo data."
+          - "OTP send failure from WAHA is `502 OTP_DELIVERY_FAILED`; never proceed as if the code was sent."
+          - "API missing or unreachable returns visible offline/error/empty state; do not fall back to Firebase or hard-coded live rides."
+          - "Google Maps Flutter renderer and device location remain client-side presentation/device capabilities; Places/Routes HTTP is proxied through `/api/maps/*`."
+        idempotency_retry: "Use API-issued resource/transaction identifiers and server idempotency/locking behavior; do not retry non-idempotent writes blindly. For uncertain write outcome, read resource/status from API before resubmitting."
+        fallback: "No persistence/provider fallback. Keep current screen and present a truthful error/empty state. The only allowed offline behavior is non-authoritative presentation that cannot imply a successful ride/payment."
+        must_preserve: true

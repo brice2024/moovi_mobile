@@ -1,0 +1,27 @@
+unit: driver-onboarding
+bindings:
+  - type: convention
+    name: "ChooseVehiclePage pushes Carinfos or Motoinfos"
+    source_loc: "lib/driversScreens/ChooseVehiclePage.dart:28"
+    target: "Carinfos/Motoinfos"
+    must_appear_in_target: true
+    notes: "Keep category-specific form fields and document collection."
+  - type: convention
+    name: "ImagePicker and Firebase Storage upload followed by Firestore driver write"
+    source_loc: "lib/driversScreens/CarInfos.dart:184"
+    target: "Carinfos/Motoinfos"
+    must_appear_in_target: true
+    notes: "Preserve selected-image/progress/validation UI; use authenticated multipart API upload, not Firebase Storage."
+  - type: convention
+    name: "Success opens DriverVerificationPage"
+    source_loc: "lib/driversScreens/CarInfos.dart:212"
+    target: "DriverVerificationPage"
+    must_appear_in_target: true
+    notes: "Navigate only after API registration/upload succeeds."
+runtime_config:
+  - key: "Firebase Storage project bucket"
+    source_loc: "lib/firebase_options.dart:57"
+    source: code
+    default_value: "Firebase project option"
+    must_appear_in_target: false
+    notes: "Replace with API file endpoints and API host; do not embed upload credentials."

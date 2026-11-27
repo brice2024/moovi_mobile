@@ -1,0 +1,26 @@
+unit: profile-edit
+side_effects:
+  - source_loc: "lib/userScreens/profil/edit_profile_page.dart:145"
+    effect: "Validates and submits first/last name and phone; optionally uploads/replaces or removes avatar."
+    must_preserve: true
+  - source_loc: "lib/userScreens/profil/edit_profile_page.dart:215"
+    effect: "On successful API save returns `true` to the profile route; old avatar cleanup is currently best-effort Firebase Storage behavior."
+    must_preserve: true
+branches:
+  - source_loc: "lib/userScreens/profil/edit_profile_page.dart:172"
+    condition: "New image selected, remove-photo selected, or no avatar change."
+    behavior: "Upload through API and update returned photo URL/path; request server deletion for removed avatar; otherwise preserve current photo."
+    must_preserve: true
+error_paths:
+  - source_loc: "lib/userScreens/profil/edit_profile_page.dart:208"
+    trigger: "Validation, avatar upload, or profile update fails."
+    outcome: "Keep edit page open, show error, and do not report saved."
+    contract: "PUT/PATCH `/api/users/me` and POST/DELETE `/api/users/me/avatar` return validation/conflict/file errors."
+    must_preserve: true
+concurrency:
+  model: coroutine
+  tx_boundary:
+    source_loc: "../api/app/views/users.py:39"
+    scope: "Profile and avatar metadata are committed by API; Flutter must not coordinate Firestore and Storage writes."
+    isolation: "API database transaction"
+    must_preserve: true

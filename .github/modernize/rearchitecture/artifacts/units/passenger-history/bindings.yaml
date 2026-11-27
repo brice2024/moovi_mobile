@@ -1,0 +1,9 @@
+unit: passenger-history
+bindings:
+  - type: convention
+    name: "HistoryPage is selected by Pagesmanager tab index 1"
+    source_loc: "lib/userScreens/PagesManager.dart:24"
+    target: "HistoryPage"
+    must_appear_in_target: true
+    notes: "Replace Firestore stream with authenticated `/api/users/me/rides`; preserve order and visible empty/loading states."
+runtime_config: []

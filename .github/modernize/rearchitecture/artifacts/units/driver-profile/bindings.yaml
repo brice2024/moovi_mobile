@@ -1,0 +1,9 @@
+unit: driver-profile
+bindings:
+  - type: convention
+    name: "DriverProfilePage wallet navigation and confirmed logout"
+    source_loc: "lib/driversScreens/test/driver_profile_page.dart:89"
+    target: "DriverProfilePage"
+    must_appear_in_target: true
+    notes: "Wallet is API-backed; logout invokes shared API auth/session service."
+runtime_config: []
