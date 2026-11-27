@@ -1,0 +1,180 @@
+/* Ajustements Moovi par-dessus le design system (public/assets/css/main.css) */
+#app {
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* Badges complémentaires */
+.badge-table.neutral {
+  background-color: rgba(108, 126, 117, 0.12);
+  color: var(--text-muted-green);
+}
+.badge-table.neutral::before {
+  background-color: var(--text-muted-green);
+}
+.badge-table.info {
+  background-color: rgba(59, 130, 246, 0.1);
+  color: #2563eb;
+}
+.badge-table.info::before {
+  background-color: #2563eb;
+}
+
+/* Fenêtres modales maison (sans dépendre du JS Bootstrap) */
+.moovi-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 28, 18, 0.65);
+  backdrop-filter: blur(3px);
+  z-index: 1055;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 3vh 1rem;
+  overflow-y: auto;
+}
+.moovi-modal {
+  background: #fff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 1100px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+}
+.moovi-modal.size-md {
+  max-width: 640px;
+}
+.moovi-modal-header {
+  background: var(--brand-forest-dark);
+  color: #fff;
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.moovi-modal-body {
+  padding: 1.5rem;
+}
+.moovi-tabs {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--border-light);
+  padding: 0 1.5rem;
+  background: #fafcfb;
+  overflow-x: auto;
+}
+.moovi-tabs button {
+  border: none;
+  background: none;
+  padding: 0.85rem 1rem;
+  font-weight: 600;
+  color: var(--text-muted-green);
+  border-bottom: 3px solid transparent;
+  white-space: nowrap;
+}
+.moovi-tabs button.active {
+  color: var(--text-main);
+  border-bottom-color: var(--brand-lime);
+}
+
+/* Cartes de chiffres */
+.kpi-card {
+  background: #fff;
+  border-radius: 14px;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--border-light);
+}
+/* Hauteurs égales seulement quand les cartes sont alignées dans une grille */
+.row > [class*='col'] > .kpi-card:only-child {
+  height: 100%;
+}
+.kpi-card .kpi-label {
+  font-size: 0.78rem;
+  color: var(--text-muted-green);
+  font-weight: 600;
+}
+.kpi-card .kpi-value {
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: var(--text-main);
+  margin-top: 0.15rem;
+}
+.kpi-card .kpi-sub {
+  font-size: 0.75rem;
+  color: var(--text-muted-green);
+}
+
+/* Documents chauffeur */
+.doc-thumb {
+  height: 150px;
+  background: #f1f4f2 center / contain no-repeat;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted-green);
+  font-size: 0.8rem;
+  cursor: zoom-in;
+}
+.doc-zoom {
+  max-width: 92vw;
+  max-height: 88vh;
+  border-radius: 10px;
+}
+
+/* Pile de messages */
+.toast-host {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-width: 380px;
+}
+
+.chat-bubble {
+  max-width: 75%;
+  padding: 0.5rem 0.8rem;
+  border-radius: 12px;
+  font-size: 0.85rem;
+}
+.chat-bubble.passenger {
+  background: #f1f4f2;
+}
+.chat-bubble.driver {
+  background: var(--brand-lime-translucent);
+  margin-left: auto;
+}
+
+.timeline-step {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  padding-bottom: 0.75rem;
+}
+.timeline-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-top: 0.4rem;
+  background: var(--border-light);
+  flex: none;
+}
+.timeline-dot.done {
+  background: var(--sys-green);
+}
+
+.cursor-pointer {
+  cursor: pointer;
+}
+.text-xs {
+  font-size: 0.75rem;
+}
+.mono {
+  font-family: ui-monospace, monospace;
+}
+.min-w-0 {
+  min-width: 0;
+}
